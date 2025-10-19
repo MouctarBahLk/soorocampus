@@ -1,0 +1,319 @@
+// data/ressources.ts
+export type ArticleLite = {
+  slug: string
+  tag: 'Guide' | 'Checklist' | 'Conseils' | 'Outils' | 'Finances' | 'Entretien' | 'Visa' | 'Vie étudiante'
+  title: string
+  excerpt: string
+  cover: string
+}
+
+export type ArticleFull = ArticleLite & {
+  intro: string
+  freeSections: { title: string; content: string }[]
+  premiumSections: { title: string; bullets: string[] }[]
+}
+
+export const ARTICLES: ArticleFull[] = [
+  {
+    slug: 'procedure-campus-france',
+    tag: 'Guide',
+    title: 'Procédure Campus France : le guide étape par étape',
+    excerpt: 'De la création de compte jusqu’au visa : parcours clair et checklists.',
+    cover: '/covers/campus-france-guide.jpg',
+    intro:
+      "La procédure Études en France (EEF) regroupe candidature aux établissements, instruction Campus France, puis demande de visa. Suis ce fil conducteur pour éviter les oublis.",
+    freeSections: [
+      { title: 'Créer ton compte EEF', content: "Renseigne identité, parcours, projet d’études. Prépare tes scans (PDF, <2Mo si possible) et des noms de fichiers clairs." },
+      { title: 'Choisir tes formations', content: "Vise la cohérence profil ↔ formation ↔ projet. Varie LMD (Licence/Master) et niveaux d’exigence pour sécuriser des admissions." },
+      { title: 'Soumettre + frais EEF (selon pays)', content: "Après soumission, des frais EEF peuvent s’appliquer. Dossier instruit par l’espace Campus France local." },
+      { title: 'Entretien (si convoqué)', content: "Bref, professionnel : motivations, plan d’études, niveau de langue, autonomie. Prépare 3 arguments forts et un plan B." },
+      { title: 'Réponses des établissements', content: "Téléverse ton admission/attestation. Si attente/refus, conserve la stratégie et prépare les alternatives." },
+      { title: 'Visa long séjour (France-Visas/TLS)', content: "Crée la demande, prends RDV, dépose les pièces, puis suis le traitement. À l’arrivée : validation VLS-TS." },
+    ],
+    premiumSections: [
+      { title: 'Checklist par étape', bullets: ['Calendrier personnalisé', 'Pièces exactes par étape', 'Modèles de mails pour relances', 'Plan de cohérence prêt à adapter'] },
+      { title: 'Pack modèles', bullets: ['CV FR/EN', 'Lettre de motivation', 'Relances école/consulat', 'Tableur de suivi (deadlines, RDV, pièces)'] },
+    ],
+  },
+  {
+    slug: 'checklist-documents',
+    tag: 'Checklist',
+    title: 'Documents indispensables pour ton dossier',
+    excerpt: 'La liste à jour des pièces + astuces anti-refus.',
+    cover: '/covers/checklist-docs.jpg',
+    intro:
+      "Les libellés varient selon pays/établissement, mais les catégories restent stables. Mieux vaut trop préparer que pas assez, et nommer tes fichiers proprement.",
+    freeSections: [
+      { title: 'Identité & parcours', content: "Passeport valide, état-civil, diplômes, relevés, traductions assermentées si demandé." },
+      { title: 'Académique & langue', content: "Preuves d’admission/candidatures, TCF/DELF/DALF/IELTS/TOEFL ou attestation d’exemption." },
+      { title: 'Finances & logement', content: "Preuves de ressources (étudiant/garant), hébergement (CROUS, bail, attestation), assurance logement." },
+    ],
+    premiumSections: [
+      { title: 'Nomenclature & formats', bullets: ['Noms de fichiers normalisés', 'Poids/format acceptés', 'Exemples valides', 'Motifs de refus fréquents'] },
+      { title: 'Modèles prêts', bullets: ['Attestation d’hébergement', 'Prise en charge financière', 'Déclaration sur l’honneur', 'Courriels types de suivi'] },
+    ],
+  },
+  {
+    slug: 'lettre-de-motivation',
+    tag: 'Conseils',
+    title: 'Réussir sa lettre de motivation',
+    excerpt: 'Structure, ton, erreurs à éviter + exemple commenté.',
+    cover: '/covers/lettre-motivation.jpg',
+    intro:
+      "Ta lettre doit lier parcours, formation visée et projet professionnel. Sobre, claire, personnalisée (éviter le copier-coller).",
+    freeSections: [
+      { title: 'Structure gagnante', content: "Intro brève (qui tu es), motivations académiques, adéquation programme, projection pro, conclusion polie." },
+      { title: 'Ton & style', content: "Professionnel, affirmé sans excès. Privilégie des exemples concrets plutôt que des adjectifs vagues." },
+      { title: 'Erreurs courantes', content: "Incohérence, lettres génériques, fautes, longueurs. Vérifie orthographe et noms d’établissement." },
+    ],
+    premiumSections: [
+      { title: 'Exemples commentés', bullets: ['Licence → Master : angle évolution', 'Reconversion : valoriser expériences', 'Alternance : employabilité', 'Modèle FR + EN'] },
+      { title: 'Checklist qualité', bullets: ['10 points à vérifier', 'Mots-clés acad./pro', 'Longueur idéale', 'Adaptations par filière'] },
+    ],
+  },
+  {
+    slug: 'modeles-templates',
+    tag: 'Outils',
+    title: 'Modèles & templates téléchargeables',
+    excerpt: 'CV, LM, emails types, planning, checklists prêtes.',
+    cover: '/covers/templates.jpg',
+    intro:
+      "Tous nos modèles standards au format modifiable (Docx/Google Docs/Sheets). Utilise-les tels quels ou adapte-les à ton dossier.",
+    freeSections: [
+      { title: 'Ce que tu obtiens', content: "CV FR/EN, Lettre de motivation, Relances école/TLS, Tableur deadlines, Checklist visa, Plan de cohérence." },
+      { title: 'Comment les utiliser', content: "Duplique et remplis. Conserve une version PDF pour les dépôts. Nomme-les correctement." },
+    ],
+    premiumSections: [
+      { title: 'Accès complet', bullets: ['Téléchargements illimités', 'Mises à jour', 'Exemples réels anonymisés', 'Guides d’usage rapides'] },
+    ],
+  },
+  {
+    slug: 'preuve-de-ressources',
+    tag: 'Finances',
+    title: 'Budget & preuve de ressources',
+    excerpt: 'Préparer la preuve financière sans stress.',
+    cover: '/covers/finances.jpg',
+    intro:
+      "Le consulat vérifie tes moyens de subsistance (étudiant ou garant). La présentation et la cohérence des montants sont clés.",
+    freeSections: [
+      { title: 'Sources acceptées', content: "Revenus/épargne, prise en charge par un garant, bourse, justificatifs bancaires récents." },
+      { title: 'Bonnes pratiques', content: "Relevés lisibles, montants stables, cohérents avec les frais (logement/transport/scolarité)." },
+      { title: 'Ce qui bloque', content: "Montants insuffisants, documents illisibles, comptes trop récents, conversions douteuses." },
+    ],
+    premiumSections: [
+      { title: 'Dossiers béton', bullets: ['Modèle de prise en charge', 'Tableau budget mensuel', 'Conversion devises', 'Exemples validés'] },
+    ],
+  },
+  {
+    slug: 'entretien-campus-france',
+    tag: 'Entretien',
+    title: 'Entretien Campus France : questions fréquentes',
+    excerpt: 'Attentes des conseillers + erreurs à éviter.',
+    cover: '/covers/entretien.jpg',
+    intro:
+      "L’entretien confirme la cohérence de ton projet et ton autonomie. Pas d’interrogatoire : un échange court et structuré.",
+    freeSections: [
+      { title: 'Ce qu’ils évaluent', content: "Motivations, compréhension du programme, projet pro, ressources, logement, langue." },
+      { title: 'Q/R classiques', content: "Pourquoi cette formation ? Pourquoi la France ? Quelle cohérence avec ton parcours ? Et ton plan B ?" },
+    ],
+    premiumSections: [
+      { title: 'Simulations', bullets: ['Trame d’auto-prépa', 'Scores par critère', 'Réponses types', 'Pièges & reformulations'] },
+    ],
+  },
+  {
+    slug: 'visa-long-sejour',
+    tag: 'Visa',
+    title: 'Après Campus France : visa long séjour',
+    excerpt: 'France-Visas, RDV TLS/consulat, délais & suivi.',
+    cover: '/covers/visa.jpg',
+    intro:
+      "Après admission/validation EEF, dépose ton dossier visa (VLS-TS étudiant). Respecte formats et délais, et garde des copies.",
+    freeSections: [
+      { title: 'Créer le dossier', content: "Compte France-Visas, formulaire, liste personnalisée, prise de RDV au centre." },
+      { title: 'Dépôt & suivi', content: "Empreintes, réception, tracking. À l’arrivée : validation VLS-TS en ligne." },
+    ],
+    premiumSections: [
+      { title: 'Anti-retard', bullets: ['Checklist par pays', 'Pré-remplissages types', 'Relances & escalades', 'Plan B si créneaux rares'] },
+    ],
+  },
+  {
+    slug: 'logement-etudiant',
+    tag: 'Vie étudiante',
+    title: 'Se loger en France depuis l’étranger',
+    excerpt: 'Crous, résidences, baux, attestations, anti-arnaques.',
+    cover: '/covers/logement.jpg',
+    intro:
+      "Anticipe : attestation de logement peut être demandée pour le visa. Diversifie tes pistes et sécurise les paiements.",
+    freeSections: [
+      { title: 'Options', content: "CROUS, résidences privées, colocations, hébergement chez un proche (attestation + pièces du logeur)." },
+      { title: 'Dossiers', content: "Pièces standard : identité, ressources, garant selon résidence. Vérifie les plateformes officielles." },
+    ],
+    premiumSections: [
+      { title: 'Modèles utiles', bullets: ['Attestation d’hébergement', 'Lettre au CROUS', 'Checklist état des lieux', 'Liste plateformes sûres'] },
+    ],
+  },
+  {
+    slug: 'calendrier-deadlines',
+    tag: 'Guide',
+    title: 'Calendrier & deadlines (selon pays)',
+    excerpt: 'Planning type + marges de sécurité.',
+    cover: '/covers/calendrier.jpg',
+    intro:
+      "Les fenêtres de candidature et RDV varient. Utilise un rétroplanning : soumission → entretien (si) → réponses → visa.",
+    freeSections: [
+      { title: 'Rétroplanning', content: "Remonter 3–6 mois selon pays. Bloquer des jalons (dossier, RDV, paiement, logement)." },
+      { title: 'Rappels', content: "Utilise notre tableur/agenda pour notifications et partages avec le garant." },
+    ],
+    premiumSections: [
+      { title: 'Plannings prêts', bullets: ['Modèle universel', 'Modèle “pays A”', 'Modèle “pays B”', 'Feuille de route équipe/garant'] },
+    ],
+  },
+  {
+    slug: 'traductions-legalisation',
+    tag: 'Checklist',
+    title: 'Traductions & légalisation de documents',
+    excerpt: 'Quand traduire, qui légalise, formats & bonnes pratiques.',
+    cover: '/covers/traductions.jpg',
+    intro:
+      "Certaines pièces exigent une traduction assermentée ou une légalisation/apostille. Anticipe les délais.",
+    freeSections: [
+      { title: 'Traduction assermentée', content: "Liste de traducteurs agréés selon pays. Conserver l’original + la traduction." },
+      { title: 'Légalisation/Apostille', content: "Selon l’origine des documents. Vérifie l’exigence de l’établissement/consulat." },
+    ],
+    premiumSections: [
+      { title: 'Modèles & circuit', bullets: ['Courrier demande légalisation', 'Check pays/apostille', 'Délais moyens', 'Packaging du dossier'] },
+    ],
+  },
+  {
+    slug: 'attestation-logement',
+    tag: 'Checklist',
+    title: 'Attestation de logement : quoi fournir ?',
+    excerpt: 'Bail, CROUS, attestation d’hébergement + pièces du logeur.',
+    cover: '/covers/attestation-logement.jpg',
+    intro:
+      "Le visa étudiant peut exiger une preuve de logement (ou d’hébergement). Adapte selon ton cas (résidence, proche, bail).",
+    freeSections: [
+      { title: 'Cas fréquents', content: "Bail nominatif, CROUS (notification), hébergement chez un proche (attestation + justificatifs du logeur)." },
+      { title: 'Points de vigilance', content: "Adresses cohérentes, durées alignées au séjour, documents lisibles et récents." },
+    ],
+    premiumSections: [
+      { title: 'Modèles prêts', bullets: ['Attestation d’hébergement', 'Lettre explicative consulat', 'Checklist pièces du logeur', 'Exemples acceptés'] },
+    ],
+  },
+  {
+    slug: 'assurances-sante',
+    tag: 'Vie étudiante',
+    title: 'Assurances & santé : ce qu’il faut prévoir',
+    excerpt: 'Logement, responsabilité civile, sécu étudiante, mutuelle.',
+    cover: '/covers/assurances.jpg',
+    intro:
+      "L’assurance logement est quasi systématique. Prévois aussi la responsabilité civile et la couverture santé adaptée.",
+    freeSections: [
+      { title: 'Avant l’arrivée', content: "Attestation logement, RC, éventuellement assurance voyage pour le visa." },
+      { title: 'Après l’arrivée', content: "Inscription à la sécu étudiante (selon statut), mutuelle recommandée." },
+    ],
+    premiumSections: [
+      { title: 'Guides pratiques', bullets: ['Comparatif assurances', 'Courriers types', 'Check d’installation', 'Conseils budget'] },
+    ],
+  },
+  {
+    slug: 'cv-etudiant-modele',
+    tag: 'Outils',
+    title: 'Premier CV pour étude en France : modèle commenté',
+    excerpt: 'Rubriques, erreurs fréquentes, exemple annoté.',
+    cover: '/covers/cv.jpg',
+    intro:
+      "Un CV français est synthétique (1 page), centré sur compétences/expériences utiles pour la formation visée.",
+    freeSections: [
+      { title: 'Sections', content: "En-tête, formation, compétences, expériences/projets, langues, centres d’intérêt." },
+      { title: 'Erreurs', content: "CV trop long, informations inutiles, fautes, photo inadaptée." },
+    ],
+    premiumSections: [
+      { title: 'Modèles', bullets: ['Template sobre FR/EN', 'Version stage/alternance', 'Exemple annoté', 'Pack icônes'] },
+    ],
+  },
+  {
+    slug: 'emails-relance',
+    tag: 'Outils',
+    title: 'Emails types pour relancer école/consulat',
+    excerpt: 'Modèles pros, ton, timing & bonnes pratiques.',
+    cover: '/covers/emails.jpg',
+    intro:
+      "Des relances courtes et polies font avancer ton dossier. Utilise un objet clair et un contexte précis.",
+    freeSections: [
+      { title: 'Timing', content: "Relance 5–10 jours ouvrés après la première demande, puis espacements raisonnables." },
+      { title: 'Structure', content: "Objet précis, rappel du contexte, demande claire, remerciements, signature complète." },
+    ],
+    premiumSections: [
+      { title: 'Modèles prêts', bullets: ['Relance école', 'Relance consulat/TLS', 'Escalade polie', 'Réponse à informations manquantes'] },
+    ],
+  },
+  {
+    slug: 'coherence-projet',
+    tag: 'Conseils',
+    title: 'Prouver la cohérence de ton projet d’études',
+    excerpt: 'Articuler parcours, formation et objectif pro.',
+    cover: '/covers/projet.jpg',
+    intro:
+      "La cohérence est le fil rouge qui rassure les évaluateurs : admissibilité académique + employabilité.",
+    freeSections: [
+      { title: 'Storyline', content: "Parcours → compétences → formation visée → objectif pro concret. Ajoute des preuves (stages, projets)." },
+      { title: 'Alignement', content: "Lien entre modules du programme et compétences ciblées. Mentionne le marché/secteur visé." },
+    ],
+    premiumSections: [
+      { title: 'Trames', bullets: ['Reprise d’études', 'Changement de filière', 'Renforcement post-licence', 'Internationalisation de profil'] },
+    ],
+  },
+  {
+    slug: 'frais-scolarite',
+    tag: 'Finances',
+    title: 'Frais de scolarité & modalités de paiement',
+    excerpt: 'Acomptes, virements internationaux, justificatifs.',
+    cover: '/covers/frais.jpg',
+    intro:
+      "Anticipe les échéances : certains établissements demandent un acompte pour confirmer l’inscription.",
+    freeSections: [
+      { title: 'Moyens de paiement', content: "CB, virement international, plateformes dédiées, preuves à conserver (reçus, captures)." },
+      { title: 'Astuce budget', content: "Planifie devises/frais bancaires, délais de transfert, et garde des marges." },
+    ],
+    premiumSections: [
+      { title: 'Documents utiles', bullets: ['Modèle d’attestation de paiement', 'Courrier de confirmation', 'Checklist reçus', 'Tableau de suivi'] },
+    ],
+  },
+  {
+    slug: 'arriver-en-france-30-jours',
+    tag: 'Vie étudiante',
+    title: 'Arriver en France : les 30 premiers jours',
+    excerpt: 'OFII/ANEF, banque, téléphone, logement — par priorité.',
+    cover: '/covers/j30.jpg',
+    intro:
+      "Ces démarches débloquent ta vie pratique : validation VLS-TS, compte bancaire, forfait mobile, assurances, logement.",
+    freeSections: [
+      { title: 'Priorités J+7', content: "Validation VLS-TS, ouverture bancaire, forfait mobile, assurance logement." },
+      { title: 'Avant J+30', content: "CAF (selon cas), inscription sécu, mutuelle, carte de transport, titres de séjour si besoin." },
+    ],
+    premiumSections: [
+      { title: 'Checklist complète', bullets: ['Séquence par semaine', 'Liens utiles', 'Docs à prévoir', 'Rappels automatiques (modèle)'] },
+    ],
+  },
+  {
+    slug: 'faq-50-questions',
+    tag: 'Guide',
+    title: 'FAQ Campus France : 50 réponses rapides',
+    excerpt: 'Les doutes les plus courants expliqués simplement.',
+    cover: '/covers/faq.jpg',
+    intro:
+      "Une FAQ condensée pour te débloquer vite : “est-ce obligatoire ?”, “comment prouver… ?”, “et si je rate…”",
+    freeSections: [
+      { title: 'Bloc 1', content: "10 Q/R sur candidature & pièces." },
+      { title: 'Bloc 2', content: "10 Q/R sur entretien & admissions." },
+      { title: 'Bloc 3', content: "10 Q/R sur visa & arrivée." },
+    ],
+    premiumSections: [
+      { title: 'La totale', bullets: ['50 Q/R classées', 'Liens directs officiels', 'Modèles de réponses', 'Mises à jour régulières'] },
+    ],
+  },
+]
+
+// liste “lite” pour les grilles
+export const ARTICLES_LITE: ArticleLite[] = ARTICLES.map(({ freeSections, premiumSections, intro, ...rest }) => rest)
