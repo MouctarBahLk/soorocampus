@@ -38,7 +38,7 @@ export default function FooterPublic() {
             <h3 className="font-semibold text-white mb-4">Contact</h3>
             <ul className="space-y-2 text-sm">
               <li>contact@soorocampus.com</li>
-              <li>+33 X XX XX XX XX</li>
+              <li>+33 7 44 28 98 10</li>
             </ul>
           </div>
         </div>
