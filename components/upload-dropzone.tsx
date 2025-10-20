@@ -1,7 +1,7 @@
 'use client'
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
+import { Upload, AlertCircle, CheckCircle, FileText, Info } from 'lucide-react'
 
 type Props = {
   disabled?: boolean
@@ -12,8 +12,8 @@ type Props = {
 const DOC_TYPES = [
   { value: 'photo_identite', label: "Photo d'identité" },
   { value: 'cv', label: 'CV' },
-  { value: 'releve_notes', label: 'Relevés de notes' },
-  { value: 'releve_notes_terminale', label: 'Relevés Terminale' },
+  { value: 'releve_notes', label: 'Relevés de notes (Post-Bac)' },
+  { value: 'releve_notes_terminale', label: 'Relevés de notes (Terminale)' },
   { value: 'diplome_bac', label: 'Diplôme du bac' },
   { value: 'passeport', label: 'Passeport' },
 ]
@@ -41,6 +41,7 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
   // États pour le type de document
   const [docType, setDocType] = useState('')
   const [subType, setSubType] = useState('')
+  const [showInfo, setShowInfo] = useState(true)
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -55,13 +56,13 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
 
       // Validation taille photo d'identité
       if (docType === 'photo_identite' && file.size > 450 * 1024) {
-        setError('⚠️ La photo d\'identité doit faire moins de 450 Ko')
+        setError(' La photo d\'identité doit faire moins de 450 Ko')
         return
       }
 
       // Validation taille générale (10 Mo)
       if (file.size > 10 * 1024 * 1024) {
-        setError('⚠️ Le fichier est trop lourd (max 10 Mo)')
+        setError(' Le fichier est trop lourd (max 10 Mo)')
         return
       }
 
@@ -77,10 +78,16 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
           formData.append('sub_type', subType)
         }
 
-        const res = await fetch('/api/documents/upload', {
+        const res = await fetch('/api/documents', {
           method: 'POST',
           body: formData,
         })
+
+        // Vérifier si la réponse est du JSON
+        const contentType = res.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Erreur serveur : réponse invalide')
+        }
 
         const data = await res.json()
 
@@ -132,7 +139,66 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
   const currentSubTypes = SUB_TYPES[docType] || []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* INFO : Documents requis */}
+      {showInfo && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-2">Documents requis</h3>
+                
+                <div className="text-sm text-blue-800 space-y-3">
+                  <div>
+                    <p className="font-medium mb-1"> Pour tous :</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Photo d'identité (fond blanc, max 450 Ko)</li>
+                      <li>CV</li>
+                      <li>Passeport biométrique</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-1"> Si vous êtes en Terminale :</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Attestation de Terminale</li>
+                      <li>Bulletin de 12ème année</li>
+                      <li>Bulletin de 11ème année</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p className="font-medium mb-1"> Si vous êtes Post-Bac :</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Attestation 2025-2026</li>
+                      <li>Bulletins 2024-2025, 2023-2024, 2022-2023</li>
+                      <li>Diplôme du bac + relevé de notes</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowInfo(false)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Masquer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!showInfo && (
+        <button
+          onClick={() => setShowInfo(true)}
+          className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+        >
+          <Info className="h-4 w-4" />
+          Afficher les documents requis
+        </button>
+      )}
+
       {/* Sélection du type de document */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -161,7 +227,7 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
       {showSubTypes && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Précise l'année <span className="text-red-500">*</span>
+            Précise l'année / le type <span className="text-red-500">*</span>
           </label>
           <select
             value={subType}
@@ -172,13 +238,32 @@ export default function UploadDropzone({ disabled = false, onUploadSuccess }: Pr
             disabled={disabled || uploading}
             className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
-            <option value="">-- Sélectionne une année --</option>
+            <option value="">-- Sélectionne --</option>
             {currentSubTypes.map((sub) => (
               <option key={sub.value} value={sub.value}>
                 {sub.label}
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {/* Info contextuelle selon le type sélectionné */}
+      {docType === 'photo_identite' && (
+        <div className="flex items-start gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-sm text-yellow-800">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>
+            <strong>Important :</strong> Fond blanc obligatoire, taille maximum 450 Ko
+          </span>
+        </div>
+      )}
+
+      {docType === 'passeport' && (
+        <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+          <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>
+            Passeport <strong>biométrique</strong> requis (avec puce électronique)
+          </span>
         </div>
       )}
 
