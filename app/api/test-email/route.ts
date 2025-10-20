@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const data = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: 'bahmofs@gmail.com',
+      to: 'mamadoumouctarbah70@gmail.com',
       subject: 'Test Resend direct',
       text: 'Ceci est un test direct depuis SooroCampus.',
     })
