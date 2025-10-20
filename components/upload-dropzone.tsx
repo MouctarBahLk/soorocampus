@@ -1,177 +1,155 @@
-// components/upload-dropzone.tsx
-"use client"
+'use client'
+import { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { Upload, AlertCircle, CheckCircle } from 'lucide-react'
 
-import { useState } from "react"
-import { Upload } from "lucide-react"
-
-interface UploadDropzoneProps {
-  onUploadSuccess?: () => void
+type Props = {
   disabled?: boolean
+  onUploadSuccess?: () => void
 }
 
-export default function UploadDropzone({ onUploadSuccess, disabled = false }: UploadDropzoneProps) {
-  const [studentStatus, setStudentStatus] = useState<"" | "terminale" | "postbac">("")
-  const [selectedType, setSelectedType] = useState<string>("")
-  const [isDragging, setIsDragging] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+// Types de documents disponibles
+const DOC_TYPES = [
+  { value: 'photo_identite', label: "Photo d'identité" },
+  { value: 'cv', label: 'CV' },
+  { value: 'releve_notes', label: 'Relevés de notes' },
+  { value: 'releve_notes_terminale', label: 'Relevés Terminale' },
+  { value: 'diplome_bac', label: 'Diplôme du bac' },
+  { value: 'passeport', label: 'Passeport' },
+]
 
-  // Dynamic document types based on student status
-  const getDocTypes = () => {
-    const common = [
-      { value: "photo_identite", label: "Photo d'identité (fond blanc)" },
-      { value: "cv", label: "CV" },
-    ]
+// Sous-types pour les relevés de notes
+const SUB_TYPES: { [key: string]: { value: string; label: string }[] } = {
+  releve_notes: [
+    { value: 'releve_2025', label: 'Attestation 2025-2026' },
+    { value: 'releve_2024', label: 'Bulletin 2024-2025' },
+    { value: 'releve_2023', label: 'Bulletin 2023-2024' },
+    { value: 'releve_2022', label: 'Bulletin 2022-2023' },
+  ],
+  releve_notes_terminale: [
+    { value: 'attestation_terminale', label: 'Attestation Terminale' },
+    { value: 'bulletin_12eme', label: 'Bulletin 12ème' },
+    { value: 'bulletin_11eme', label: 'Bulletin 11ème' },
+  ],
+}
 
-    if (studentStatus === "terminale") {
-      return [
-        ...common,
-        { value: "attestation_terminale", label: "Attestation d'inscription Terminale 2025-2026" },
-        { value: "bulletin_12eme", label: "Bulletin 12ème" },
-        { value: "bulletin_11eme", label: "Bulletin 11ème" },
-        { value: "passeport", label: "Passeport biométrique" },
-      ]
-    } else if (studentStatus === "postbac") {
-      return [
-        ...common,
-        { value: "releve_2025", label: "Attestation d'inscription 2025-2026" },
-        { value: "releve_2024", label: "Bulletin 2024-2025" },
-        { value: "releve_2023", label: "Bulletin 2023-2024" },
-        { value: "releve_2022", label: "Bulletin 2022-2023" },
-        { value: "diplome_bac", label: "Diplôme du bac + relevé de notes" },
-        { value: "passeport", label: "Passeport biométrique" },
-      ]
-    }
-    return []
-  }
+export default function UploadDropzone({ disabled = false, onUploadSuccess }: Props) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  
+  // États pour le type de document
+  const [docType, setDocType] = useState('')
+  const [subType, setSubType] = useState('')
 
-  const docTypes = getDocTypes()
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDragging(false)
-  }
-
-  const handleUpload = async (file: File) => {
-    if (!selectedType) {
-      setMessage({ type: "error", text: "Sélectionne d'abord le type de document" })
-      return
-    }
-
-    setIsLoading(true)
-    setMessage(null)
-
-    try {
-      const form = new FormData()
-      form.append("file", file)
-      
-      // Déterminer le docType et subType selon le statut
-      if (studentStatus === "terminale" && 
-          (selectedType === "attestation_terminale" || selectedType === "bulletin_12eme" || selectedType === "bulletin_11eme")) {
-        form.append("docType", "releve_notes_terminale")
-        form.append("subType", selectedType)
-      } else if (studentStatus === "postbac" && 
-                 (selectedType === "releve_2025" || selectedType === "releve_2024" || selectedType === "releve_2023" || selectedType === "releve_2022")) {
-        form.append("docType", "releve_notes")
-        form.append("subType", selectedType)
-      } else {
-        form.append("docType", selectedType)
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      // Validation : vérifier que le type de document est sélectionné
+      if (!docType) {
+        setError('⚠️ Sélectionne d\'abord un type de document')
+        return
       }
 
-      const res = await fetch("/api/documents", { method: "POST", body: form })
-      const data = await res.json()
+      const file = acceptedFiles[0]
+      if (!file) return
 
-      if (!res.ok) {
-        setMessage({ type: "error", text: data.error || "Erreur lors de l'upload" })
-      } else {
-        setMessage({ type: "success", text: "Document uploadé avec succès !" })
-        setSelectedType("")
-        if (onUploadSuccess) {
-          setTimeout(() => onUploadSuccess(), 1000)
-        } else {
-          setTimeout(() => window.location.reload(), 1500)
+      // Validation taille photo d'identité
+      if (docType === 'photo_identite' && file.size > 450 * 1024) {
+        setError('⚠️ La photo d\'identité doit faire moins de 450 Ko')
+        return
+      }
+
+      // Validation taille générale (10 Mo)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('⚠️ Le fichier est trop lourd (max 10 Mo)')
+        return
+      }
+
+      setUploading(true)
+      setError(null)
+      setSuccess(false)
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('type_doc', docType)
+        if (subType) {
+          formData.append('sub_type', subType)
         }
+
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Erreur lors de l\'upload')
+        }
+
+        setSuccess(true)
+        setError(null)
+        
+        // Réinitialiser les champs
+        setDocType('')
+        setSubType('')
+        
+        // Callback de succès
+        if (onUploadSuccess) {
+          setTimeout(() => {
+            onUploadSuccess()
+          }, 500)
+        }
+
+        // Masquer le message de succès après 3s
+        setTimeout(() => {
+          setSuccess(false)
+        }, 3000)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+        setError(message)
+      } finally {
+        setUploading(false)
       }
-    } catch (e) {
-      const err = e instanceof Error ? e.message : String(e)
-      setMessage({ type: "error", text: err })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    },
+    [docType, subType, onUploadSuccess]
+  )
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
-      handleUpload(files[0])
-    }
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    disabled: disabled || uploading,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'image/png': ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+    },
+    maxFiles: 1,
+  })
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.currentTarget.files
-    if (files && files.length > 0) {
-      handleUpload(files[0])
-    }
-  }
-
-  const canUpload = !!selectedType
-
-  if (!studentStatus) {
-    return (
-      <div className="space-y-4">
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm font-medium text-gray-900 mb-3">D'abord, indique ton statut :</p>
-          <div className="space-y-2">
-            <button
-              onClick={() => setStudentStatus("terminale")}
-              className="w-full p-3 text-left bg-white border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition font-medium"
-            >
-              👨‍🎓 Je suis en Terminale
-            </button>
-            <button
-              onClick={() => setStudentStatus("postbac")}
-              className="w-full p-3 text-left bg-white border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition font-medium"
-            >
-              📚 Je suis en études supérieures (Post-Bac)
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Afficher les sous-types si nécessaire
+  const showSubTypes = docType === 'releve_notes' || docType === 'releve_notes_terminale'
+  const currentSubTypes = SUB_TYPES[docType] || []
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-gray-700">
-          {studentStatus === "terminale" ? "👨‍🎓 Terminale" : "📚 Post-Bac"}
-        </span>
-        <button
-          onClick={() => setStudentStatus("")}
-          className="text-xs text-blue-600 hover:text-blue-800 underline"
-        >
-          Changer
-        </button>
-      </div>
-
+      {/* Sélection du type de document */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Type de document <span className="text-red-500">*</span>
         </label>
         <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          disabled={isLoading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          value={docType}
+          onChange={(e) => {
+            setDocType(e.target.value)
+            setSubType('') // Réinitialiser le sous-type
+            setError(null)
+          }}
+          disabled={disabled || uploading}
+          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
-          <option value="">Choisir un type...</option>
-          {docTypes.map((type) => (
+          <option value="">-- Sélectionne un type --</option>
+          {DOC_TYPES.map((type) => (
             <option key={type.value} value={type.value}>
               {type.label}
             </option>
@@ -179,43 +157,74 @@ export default function UploadDropzone({ onUploadSuccess, disabled = false }: Up
         </select>
       </div>
 
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`relative rounded-xl border-2 border-dashed p-8 text-center transition ${
-          isDragging
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 bg-gray-50 hover:border-gray-400"
-        } ${!canUpload ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-      >
-        <input
-          type="file"
-          onChange={handleFileInput}
-          disabled={!canUpload || isLoading}
-          className="absolute inset-0 cursor-pointer opacity-0"
-        />
-        <Upload className="mx-auto mb-2 h-8 w-8 text-gray-400" />
-        <p className="font-medium text-gray-900">Glisse ton fichier ici ou clique</p>
-        <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG... (max 10 Mo)</p>
-      </div>
-
-      {message && (
-        <div
-          className={`rounded-lg px-4 py-3 text-sm ${
-            message.type === "success"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {message.text}
+      {/* Sous-type (si applicable) */}
+      {showSubTypes && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Précise l'année <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={subType}
+            onChange={(e) => {
+              setSubType(e.target.value)
+              setError(null)
+            }}
+            disabled={disabled || uploading}
+            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">-- Sélectionne une année --</option>
+            {currentSubTypes.map((sub) => (
+              <option key={sub.value} value={sub.value}>
+                {sub.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
-      {isLoading && (
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-          Upload en cours...
+      {/* Zone de drop */}
+      <div
+        {...getRootProps()}
+        className={`
+          relative rounded-xl border-2 border-dashed p-8 text-center transition-all cursor-pointer
+          ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'}
+          ${disabled || uploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-blue-50'}
+          ${!docType ? 'opacity-60 cursor-not-allowed' : ''}
+        `}
+      >
+        <input {...getInputProps()} />
+        
+        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+        
+        {uploading ? (
+          <p className="text-gray-600 font-medium">Upload en cours...</p>
+        ) : isDragActive ? (
+          <p className="text-blue-600 font-medium">Dépose le fichier ici</p>
+        ) : (
+          <>
+            <p className="text-gray-700 font-medium">
+              Glisse ton fichier ici ou clique pour sélectionner
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              PDF, PNG, JPG (max {docType === 'photo_identite' ? '450 Ko' : '10 Mo'})
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Messages d'erreur */}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Message de succès */}
+      {success && (
+        <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+          <span>✓ Document uploadé avec succès !</span>
         </div>
       )}
     </div>
