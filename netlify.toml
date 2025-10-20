@@ -6,16 +6,6 @@
   package = "@netlify/plugin-nextjs"
 
 [build.environment]
-  NODE_VERSION = "20.x"
-  NPM_FLAGS = "--legacy-peer-deps"
-  
-# Variables d'environnement (à configurer dans l'UI Netlify aussi)
-[context.production.environment]
-  NEXT_PUBLIC_SUPABASE_URL = "votre_url_supabase"
-  NEXT_PUBLIC_SUPABASE_ANON_KEY = "votre_key_supabase"
-
-# Redirection des routes Next.js
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  NODE_VERSION = "20.12.2"
+  # Optionnel si besoin de contourner des peer-deps :
+  # NPM_FLAGS = "--legacy-peer-deps"
