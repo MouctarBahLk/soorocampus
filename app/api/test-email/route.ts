@@ -9,12 +9,14 @@ export async function GET() {
   try {
     const data = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: 'mamadoumouctarbah70@gmail.com',
-      subject: 'Test Resend direct',
-      text: 'Ceci est un test direct depuis SooroCampus.',
+      to: 'mamadoumouctarbah70@gmail.com', // ton email exact
+      subject: 'Test Resend direct ✅',
+      html: '<p>Ceci est un test depuis SooroCampus avec Resend 🎓</p>',
     })
+    console.log('✅ Email envoyé :', data)
     return NextResponse.json({ ok: true, data })
   } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message })
+    console.error('❌ Erreur:', err)
+    return NextResponse.json({ ok: false, error: err })
   }
 }
