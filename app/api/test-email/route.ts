@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function GET() {
   try {
     const data = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'noreply@soorocampus.com',
       to: 'mamadoumouctarbah70@gmail.com', // ton email exact
       subject: 'Test Resend direct ✅',
       html: '<p>Ceci est un test depuis SooroCampus avec Resend 🎓</p>',
