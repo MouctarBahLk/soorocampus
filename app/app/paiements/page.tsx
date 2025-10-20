@@ -71,7 +71,7 @@ export default function PaiementsPage() {
   const [loading, setLoading] = useState(false)
 
   // settings (depuis /api/settings)
-  const [amountMinor, setAmountMinor] = useState<number>(2500) // montant au plus petit incrément
+  const [amountMinor, setAmountMinor] = useState<number>(1500) // montant au plus petit incrément
   const [currency, setCurrency] = useState<string>('EUR')
 
   // Orange

@@ -1,55 +1,85 @@
+// app/app/mon-dossier/page.tsx
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase-server'
 import UploadDropzone from '@/components/upload-dropzone'
 import StatusBadge from '@/components/status-badge'
 
+type DbDocRaw = {
+  id: string
+  nom: string            // <- nom du fichier stocké en DB
+  url: string            // <- chemin dans le bucket (PAS une URL publique)
+  type_doc: string | null
+  created_at: string
+}
+
 type DbDoc = {
   id: string
-  file_name: string
-  file_path: string
+  file_name: string      // pour l’UI
+  file_path: string      // chemin dans le bucket à resigner
   file_type: string | null
   created_at: string
 }
 type SignedDoc = DbDoc & { url: string | null }
 
+const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
+
 async function getData() {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
-  if (!user) return { user: null }
+  if (!user) return { user: null } as const
 
-
+  // Paiements
   const { data: paysRaw } = await sb
-    .from('payments').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+    .from('payments')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
   const payments = Array.isArray(paysRaw) ? paysRaw : []
   const paid = payments.some(p => p.status === 'succeeded')
 
+  // Application (dossier)
   let { data: app } = await sb
-    .from('applications').select('*').eq('user_id', user.id).maybeSingle()
+    .from('applications')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
   if (!app) {
     const { data: created } = await sb
       .from('applications')
       .insert({ user_id: user.id, statut: 'non_cree' })
-      .select().single()
+      .select()
+      .single()
     app = created ?? null
   }
 
+  // Documents — utiliser les bons champs (nom, url, type_doc)
   const { data: docsRaw } = await sb
     .from('documents')
-    .select('id,file_name,file_path,file_type,created_at')
+    .select('id, nom, url, type_doc, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-  const docs: DbDoc[] = Array.isArray(docsRaw) ? docsRaw : []
 
+  const docs: DbDoc[] = (docsRaw ?? []).map((d: DbDocRaw) => ({
+    id: d.id,
+    file_name: d.nom,
+    file_path: d.url,        // chemin dans le bucket
+    file_type: d.type_doc,
+    created_at: d.created_at,
+  }))
+
+  // Signer les URLs à partir du chemin (TTL court pour l’UI)
   const documents: SignedDoc[] = await Promise.all(
     docs.map(async d => {
-      const { data } = await sb.storage.from('documents').createSignedUrl(d.file_path, 60)
+      const { data } = await sb.storage
+        .from(BUCKET)
+        .createSignedUrl(d.file_path, 60) // 60s (ajuste si tu veux)
       return { ...d, url: data?.signedUrl ?? null }
     })
   )
 
-  return { user, paid, app, documents }
+  return { user, paid, app, documents } as const
 }
 
 export default async function MonDossier() {
@@ -97,7 +127,7 @@ export default async function MonDossier() {
         )}
       </header>
 
-      {/* rangée de cartes */}
+      {/* Statuts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-2xl border p-4">
           <div className="text-sm text-gray-500 mb-1">Statut du dossier</div>
@@ -168,7 +198,7 @@ export default async function MonDossier() {
                   </div>
                 </div>
                 {d.url
-                  ? <a className="rounded-xl border px-3 py-1.5 hover:bg-gray-50" href={d.url} target="_blank">Voir</a>
+                  ? <a className="rounded-xl border px-3 py-1.5 hover:bg-gray-50" href={d.url} target="_blank" rel="noreferrer">Voir</a>
                   : <span className="text-xs text-gray-400">URL expirée</span>}
               </li>
             ))}
