@@ -4,10 +4,12 @@ import { supabaseServer } from '@/lib/supabase-server'
 
 export async function POST(req: Request) {
   if (!stripe) return new NextResponse('Stripe non configuré', { status: 500 })
+
   const sig = req.headers.get('stripe-signature')!
   const raw = await req.text()
 
   let event
+
   try {
     event = stripe.webhooks.constructEvent(raw, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err: any) {
@@ -18,6 +20,7 @@ export async function POST(req: Request) {
   if (event.type === 'payment_intent.succeeded') {
     const intent: any = event.data.object
     const sb = await supabaseServer()
+    
     await sb.from('payments').insert({
       id: intent.id,
       user_id: intent.metadata?.user_id ?? null,
@@ -31,6 +34,7 @@ export async function POST(req: Request) {
   if (event.type === 'checkout.session.completed') {
     const session: any = event.data.object
     const sb = await supabaseServer()
+    
     await sb.from('payments').insert({
       id: session.payment_intent,
       user_id: session.client_reference_id ?? null,
@@ -44,4 +48,5 @@ export async function POST(req: Request) {
   return NextResponse.json({ received: true })
 }
 
-export const config = { api: { bodyParser: false } } as any
+// ✅ SUPPRIMÉ : export const config = { api: { bodyParser: false } } as any
+// Next.js 15 ne nécessite plus cette configuration pour les webhooks
