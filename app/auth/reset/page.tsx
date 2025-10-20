@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState, FormEvent } from 'react'
+import { Suspense, useEffect, useState, FormEvent } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-browser'
 
-export default function ResetPage() {
+// ✅ Composant qui contient la logique de reset
+function ResetPasswordForm() {
   const search = useSearchParams()
   const router = useRouter()
   const [ready, setReady] = useState(false)
@@ -207,5 +208,21 @@ export default function ResetPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ✅ Page principale avec Suspense
+export default function ResetPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
