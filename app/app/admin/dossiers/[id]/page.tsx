@@ -94,44 +94,50 @@ export default async function DossierDetailPage({ params }: any) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <Link href="/app/admin/dossiers" className="text-sm text-blue-600 hover:underline mb-2 inline-flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" /> Retour aux dossiers
+          <ArrowLeft className="h-4 w-4" /> Retour
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">Dossier de {fullName}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2 break-words">
+          Dossier de {fullName}
+        </h1>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      {/* Grid responsive: 1 colonne mobile, 3 colonnes desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Colonne gauche: Info étudiant + paiement */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Info étudiant */}
           <Card>
             <CardHeader>
-              <CardTitle>Informations étudiant</CardTitle>
+              <CardTitle className="text-lg">Informations étudiant</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-lg md:text-2xl font-bold">
                     {fullName[0]?.toUpperCase() || "?"}
                   </span>
                 </div>
-                <div>
-                  <p className="font-bold text-lg">{fullName}</p>
-                  <p className="text-sm text-gray-500">{profile?.email}</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-base md:text-lg truncate">{fullName}</p>
+                  <p className="text-xs md:text-sm text-gray-500 truncate">{profile?.email}</p>
                 </div>
               </div>
 
               <div className="space-y-3 pt-4 border-t">
                 <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-gray-400" />
-                  <div>
+                  <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <div className="min-w-0">
                     <p className="text-xs text-gray-500">Email</p>
-                    <p className="text-sm font-medium">{profile?.email || "Non renseigné"}</p>
+                    <p className="text-sm font-medium truncate">{profile?.email || "Non renseigné"}</p>
                   </div>
                 </div>
 
                 {profile?.telephone && (
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400">📞</span>
+                    <span className="text-gray-400 flex-shrink-0">📞</span>
                     <div>
                       <p className="text-xs text-gray-500">Téléphone</p>
                       <p className="text-sm font-medium">{profile.telephone}</p>
@@ -141,7 +147,7 @@ export default async function DossierDetailPage({ params }: any) {
 
                 {profile?.pays && (
                   <div className="flex items-center gap-3">
-                    <span className="text-gray-400">🌍</span>
+                    <span className="text-gray-400 flex-shrink-0">🌍</span>
                     <div>
                       <p className="text-xs text-gray-500">Pays</p>
                       <p className="text-sm font-medium">{profile.pays}</p>
@@ -150,7 +156,7 @@ export default async function DossierDetailPage({ params }: any) {
                 )}
 
                 <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-gray-400" />
+                  <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-gray-500">Inscrit le</p>
                     <p className="text-sm font-medium">
@@ -162,7 +168,7 @@ export default async function DossierDetailPage({ params }: any) {
 
               <div className="pt-4 border-t">
                 <Link href={`/app/admin/messages?user=${app.user_id}`}>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-sm md:text-base">
                     <Mail className="h-4 w-4 mr-2" />
                     Envoyer un message
                   </Button>
@@ -171,24 +177,25 @@ export default async function DossierDetailPage({ params }: any) {
             </CardContent>
           </Card>
 
+          {/* Statut paiement */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Statut du paiement</CardTitle>
+              <CardTitle className="text-base md:text-lg">Statut du paiement</CardTitle>
             </CardHeader>
             <CardContent>
               {paid ? (
                 <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-green-900">Payé</p>
+                    <p className="font-semibold text-green-900 text-sm md:text-base">Payé</p>
                     <p className="text-xs text-green-700">{paidAmount} €</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-red-900">Non payé</p>
+                    <p className="font-semibold text-red-900 text-sm md:text-base">Non payé</p>
                     <p className="text-xs text-red-700">En attente</p>
                   </div>
                 </div>
@@ -197,18 +204,20 @@ export default async function DossierDetailPage({ params }: any) {
           </Card>
         </div>
 
+        {/* Colonne droite: Statut + Documents */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Statut du dossier */}
           <Card>
             <CardHeader>
-              <CardTitle>Statut du dossier</CardTitle>
+              <CardTitle className="text-lg">Statut du dossier</CardTitle>
             </CardHeader>
             <CardContent>
               <form action={updateStatus} className="space-y-4">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                   <select
                     name="statut"
                     defaultValue={app.statut || "en cours"}
-                    className="flex-1 border rounded-xl px-4 py-3"
+                    className="flex-1 border rounded-xl px-4 py-3 text-sm md:text-base"
                   >
                     <option value="non_cree">Non créé</option>
                     <option value="en cours">En cours</option>
@@ -216,12 +225,12 @@ export default async function DossierDetailPage({ params }: any) {
                     <option value="validé">✅ Validé</option>
                     <option value="refusé">❌ Refusé</option>
                   </select>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 sm:w-auto">
                     Enregistrer
                   </Button>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-600">Statut :</span>
+                <div className="flex items-center gap-2 text-xs md:text-sm">
+                  <span className="text-gray-600">Statut actuel :</span>
                   <Badge className={
                     app.statut === "validé" ? "bg-green-600" :
                     app.statut === "refusé" ? "bg-red-600" :
@@ -235,9 +244,10 @@ export default async function DossierDetailPage({ params }: any) {
             </CardContent>
           </Card>
 
+          {/* Documents */}
           <Card>
             <CardHeader>
-              <CardTitle>Documents déposés ({documents.length})</CardTitle>
+              <CardTitle className="text-lg">Documents déposés ({documents.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {documents.length === 0 ? (
@@ -248,20 +258,24 @@ export default async function DossierDetailPage({ params }: any) {
               ) : (
                 <div className="space-y-3">
                   {documents.map((doc: any) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border">
-                      <div className="flex items-center gap-4 flex-1">
-                        <FileText className="h-6 w-6 text-blue-600" />
-                        <div>
-                          <p className="font-semibold">{doc.nom || "Document"}</p>
+                    <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-xl border">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm md:text-base truncate">{doc.nom || "Document"}</p>
                           <p className="text-xs text-gray-500">
                             {doc.type_doc} • {new Date(doc.created_at).toLocaleDateString("fr-FR")}
                           </p>
                         </div>
                       </div>
                       {doc.link && (
-                        <a href={doc.link} target="_blank" className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm flex items-center gap-2">
+                        <a 
+                          href={doc.link} 
+                          target="_blank" 
+                          className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs md:text-sm flex items-center justify-center gap-2 sm:w-auto"
+                        >
                           <Download className="h-4 w-4" />
-                          Télécharger
+                          <span>Télécharger</span>
                         </a>
                       )}
                     </div>

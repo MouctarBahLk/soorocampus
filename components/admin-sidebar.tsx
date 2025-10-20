@@ -36,6 +36,7 @@ export default function AdminSidebar() {
 
   const SidebarContent = () => (
     <>
+      {/* Logo + titre */}
       <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
         <div className="flex items-center gap-3">
           <img src="/logo_sooro.png" alt="Sooro Campus" className="h-10" />
@@ -44,6 +45,7 @@ export default function AdminSidebar() {
             <p className="text-xs text-gray-400">Administration</p>
           </div>
         </div>
+        {/* Bouton fermer (mobile) */}
         <button
           onClick={closeMenu}
           className="md:hidden text-white hover:bg-white/10 p-2 rounded-lg transition"
@@ -53,6 +55,7 @@ export default function AdminSidebar() {
         </button>
       </div>
 
+      {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-6">
         <div className="mx-auto w-full max-w-[260px] px-2 flex flex-col items-stretch space-y-2">
           {adminMenu.map(({ href, label, icon: Icon }) => {
@@ -78,6 +81,7 @@ export default function AdminSidebar() {
         </div>
       </nav>
 
+      {/* Footer avec Déconnexion */}
       <div className="border-t border-white/10 p-6">
         <form action="/auth/logout" method="post">
           <button
@@ -97,20 +101,18 @@ export default function AdminSidebar() {
 
   return (
     <>
-      {/* BOUTON HAMBURGER MOBILE */}
-      <div className="md:hidden">
-        <button
-          onClick={toggleMenu}
-          className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-xl hover:bg-slate-700 transition-all active:scale-95"
-          aria-label="Menu"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
-      </div>
+      {/* BOUTON HAMBURGER - visible uniquement sur mobile */}
+      <button
+        onClick={toggleMenu}
+        className="md:hidden fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-xl hover:bg-slate-700 transition-all active:scale-95"
+        aria-label="Menu"
+      >
+        <Menu className="h-6 w-6" />
+      </button>
 
-      {/* SIDEBAR DESKTOP */}
+      {/* SIDEBAR DESKTOP - cachée sur mobile */}
       <aside
-        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg sticky top-0"
+        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg sticky top-0 flex-shrink-0"
         style={{ backgroundColor: SIDEBAR_BG }}
       >
         <SidebarContent />
