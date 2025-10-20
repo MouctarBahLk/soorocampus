@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { supabaseServer } from '@/lib/supabase-server'
 import { sendPaymentConfirmation, sendPaymentReceipt } from '@/lib/email'
+export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   if (!stripe) return new NextResponse('Stripe non configuré', { status: 500 })

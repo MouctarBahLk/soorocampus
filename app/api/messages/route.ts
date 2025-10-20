@@ -1,7 +1,7 @@
 // app/api/messages/route.ts
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
-
+export const runtime = 'nodejs'
 function json(data: any, init?: number | ResponseInit) {
   const resInit: ResponseInit = typeof init === 'number' ? { status: init } : init || {}
   return new NextResponse(JSON.stringify(data), {
