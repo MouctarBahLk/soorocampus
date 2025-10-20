@@ -6,7 +6,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function sendWelcomeEmail(email: string, name: string) {
   try {
     await resend.emails.send({
-      from: 'Sooro Campus <onboarding@resend.dev>', // Changez après avoir configuré votre domaine
+      from: 'Sooro Campus <noreply@soorocampus.com>', // Changez après avoir configuré votre domaine
       to: email,
       subject: ' Bienvenue sur Sooro Campus !',
       html: `
@@ -60,7 +60,7 @@ export async function sendPaymentConfirmation(
   
   try {
     await resend.emails.send({
-      from: 'Sooro Campus <onboarding@resend.dev>',
+      from: 'Sooro Campus <noreply@soorocampus.com>',
       to: email,
       subject: ' Paiement confirmé - Accès au cours débloqué !',
       html: `
@@ -124,7 +124,7 @@ export async function sendPaymentReceipt(
   
   try {
     await resend.emails.send({
-      from: 'Sooro Campus <onboarding@resend.dev>',
+      from: 'Sooro Campus <noreply@soorocampus.com>',
       to: email,
       subject: ' Votre reçu de paiement - Sooro Campus',
       html: `
