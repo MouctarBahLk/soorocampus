@@ -36,7 +36,6 @@ export default function AdminSidebar() {
 
   const SidebarContent = () => (
     <>
-      {/* Logo + Badge Admin */}
       <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
         <div className="flex items-center gap-3">
           <img src="/logo_sooro.png" alt="Sooro Campus" className="h-10" />
@@ -45,17 +44,15 @@ export default function AdminSidebar() {
             <p className="text-xs text-gray-400">Administration</p>
           </div>
         </div>
-        {/* Bouton fermer (mobile) */}
         <button
           onClick={closeMenu}
           className="md:hidden text-white hover:bg-white/10 p-2 rounded-lg transition"
-          aria-label="Fermer le menu"
+          aria-label="Fermer"
         >
           <X className="h-6 w-6" />
         </button>
       </div>
 
-      {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-6">
         <div className="mx-auto w-full max-w-[260px] px-2 flex flex-col items-stretch space-y-2">
           {adminMenu.map(({ href, label, icon: Icon }) => {
@@ -81,7 +78,6 @@ export default function AdminSidebar() {
         </div>
       </nav>
 
-      {/* Footer avec Déconnexion */}
       <div className="border-t border-white/10 p-6">
         <form action="/auth/logout" method="post">
           <button
@@ -101,36 +97,38 @@ export default function AdminSidebar() {
 
   return (
     <>
-      {/* Bouton hamburger */}
-      <button
-        onClick={toggleMenu}
-        className="md:hidden fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-lg hover:bg-slate-700 transition"
-        aria-label="Ouvrir le menu"
-      >
-        <Menu className="h-6 w-6" />
-      </button>
+      {/* BOUTON HAMBURGER MOBILE */}
+      <div className="md:hidden">
+        <button
+          onClick={toggleMenu}
+          className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-xl hover:bg-slate-700 transition-all active:scale-95"
+          aria-label="Menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+      </div>
 
-      {/* Sidebar Desktop */}
+      {/* SIDEBAR DESKTOP */}
       <aside
-        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg"
+        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg sticky top-0"
         style={{ backgroundColor: SIDEBAR_BG }}
       >
         <SidebarContent />
       </aside>
 
-      {/* Overlay mobile */}
+      {/* OVERLAY MOBILE */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
           onClick={closeMenu}
         />
       )}
 
-      {/* Sidebar Mobile */}
+      {/* SIDEBAR MOBILE */}
       <aside
         className={`
-          md:hidden fixed top-0 left-0 h-screen w-[280px] z-50 flex flex-col shadow-2xl
-          transform transition-transform duration-300 ease-in-out
+          md:hidden fixed top-0 left-0 h-screen w-[85vw] max-w-[320px] z-50 flex flex-col shadow-2xl
+          transform transition-transform duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{ backgroundColor: SIDEBAR_BG }}

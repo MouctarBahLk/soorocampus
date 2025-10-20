@@ -28,15 +28,12 @@ export default function AppSidebar() {
   const [isOpen, setIsOpen] = useState(false)
 
   const SIDEBAR_BG = '#1e293b'
-  const ACTIVE_BG = '#0055FF'
 
   const toggleMenu = () => setIsOpen(!isOpen)
   const closeMenu = () => setIsOpen(false)
 
-  // Contenu de la sidebar (réutilisé pour desktop et mobile)
   const SidebarContent = () => (
     <>
-      {/* Logo + titre */}
       <div className="h-16 flex items-center justify-between px-6 border-b border-white/10">
         <div className="flex items-center gap-3">
           <img src="/logo_sooro.png" alt="Sooro Campus" className="h-10" />
@@ -45,17 +42,15 @@ export default function AppSidebar() {
             <p className="text-xs text-gray-400">Espace étudiant</p>
           </div>
         </div>
-        {/* Bouton fermer (mobile seulement) */}
         <button
           onClick={closeMenu}
-          className="md:hidden text-white hover:bg-white/10 p-2 rounded-lg"
-          aria-label="Fermer le menu"
+          className="md:hidden text-white hover:bg-white/10 p-2 rounded-lg transition"
+          aria-label="Fermer"
         >
           <X className="h-6 w-6" />
         </button>
       </div>
 
-      {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-6">
         <div className="mx-auto w-full max-w-[260px] px-2 flex flex-col items-stretch space-y-2">
           {menu.map(({ href, label, icon: Icon }) => {
@@ -79,7 +74,6 @@ export default function AppSidebar() {
         </div>
       </nav>
 
-      {/* Déconnexion */}
       <div className="border-t border-white/10 p-6">
         <form
           action="/auth/logout"
@@ -106,37 +100,38 @@ export default function AppSidebar() {
 
   return (
     <>
-      {/* Bouton hamburger (mobile uniquement) */}
-      <button
-        onClick={toggleMenu}
-        className="md:hidden fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-lg hover:bg-slate-700 transition"
-        aria-label="Ouvrir le menu"
-      >
-        <Menu className="h-6 w-6" />
-      </button>
+      {/* BOUTON HAMBURGER - TOUJOURS VISIBLE SUR MOBILE */}
+      <div className="md:hidden">
+        <button
+          onClick={toggleMenu}
+          className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-slate-800 text-white shadow-xl hover:bg-slate-700 transition-all active:scale-95"
+          aria-label="Menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+      </div>
 
-      {/* Sidebar Desktop (cachée sur mobile) */}
+      {/* SIDEBAR DESKTOP */}
       <aside
-        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg"
+        className="hidden md:flex h-screen w-[22rem] flex-col border-r shadow-lg sticky top-0"
         style={{ backgroundColor: SIDEBAR_BG }}
       >
         <SidebarContent />
       </aside>
 
-      {/* Overlay mobile (fond sombre) */}
+      {/* OVERLAY MOBILE */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm transition-opacity"
           onClick={closeMenu}
-          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar Mobile (slide depuis la gauche) */}
+      {/* SIDEBAR MOBILE */}
       <aside
         className={`
-          md:hidden fixed top-0 left-0 h-screen w-[280px] z-50 flex flex-col shadow-2xl
-          transform transition-transform duration-300 ease-in-out
+          md:hidden fixed top-0 left-0 h-screen w-[85vw] max-w-[320px] z-50 flex flex-col shadow-2xl
+          transform transition-transform duration-300 ease-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
         style={{ backgroundColor: SIDEBAR_BG }}
