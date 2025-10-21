@@ -38,7 +38,7 @@ const RESOURCES = [
       'Tableur de suivi (deadlines, RDV, pièces)',
     ],
     buttons: [
-      { label: 'Télécharger', href: '/app/ressources/modeles', variant: 'primary' },
+      { label: 'Télécharger', href: '/app/ressources/modeles/', variant: 'primary' },
       { label: 'Guide CV/LM', href: '/app/conseils/cv-etudiant-modele', variant: 'secondary' },
     ],
   },
@@ -76,7 +76,7 @@ const RESOURCES = [
     ],
     buttons: [
       { label: 'Guide budget', href: '/app/conseils/preuve-de-ressources', variant: 'primary' },
-      { label: 'Téléchargements', href: '/app/ressources/finances', variant: 'secondary' },
+      { label: 'Téléchargements', href: '/app/ressources/finances/', variant: 'secondary' },
     ],
   },
   {
