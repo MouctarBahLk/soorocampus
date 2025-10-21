@@ -120,7 +120,8 @@ const defaultTheme = {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <div className="flex items-center">
+            {/* Logo */}
+            <Link href="/" className="flex items-center">
               <img
                 src="/logo_sooro.png"
                 alt="Sooro Campus"
@@ -129,7 +130,8 @@ const defaultTheme = {
               <span className="ml-3 text-xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
                 Sooro Campus
               </span>
-            </div>
+            </Link>
+
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8">
