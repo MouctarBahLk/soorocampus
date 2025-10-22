@@ -1,24 +1,41 @@
-import "./globals.css";                // 1️⃣ ton CSS global
-import { Inter } from "next/font/google"; // 2️⃣ importer la police
-import type { Metadata } from "next";     // 3️⃣ types Next.js
+// app/layout.tsx
+import "./globals.css";
+import { Inter } from "next/font/google";
+import type { Metadata } from "next";
 
-// 4️⃣ initialiser la police
 const inter = Inter({ subsets: ["latin"] });
 
-// 5️⃣ métadonnées de ton site
 export const metadata: Metadata = {
-  title: "Sooro Campus",
-  description: "Portail étudiant Sooro Campus",
+  metadataBase: new URL("https://soorocampus.com"),
+  title: {
+    default: "Sooro Campus – Réussis ton projet Campus France",
+    template: "%s | Sooro Campus",
+  },
+  description:
+    "Guides pas à pas, modèles, checklists, coaching et suivi de dossier Campus France jusqu’à validation.",
+  openGraph: {
+    type: "website",
+    url: "https://soorocampus.com/",
+    siteName: "Sooro Campus",
+    title: "Sooro Campus – Réussis ton projet Campus France",
+    description:
+      "Guides, modèles, checklists et accompagnement expert pour réussir Campus France.",
+    images: [{ url: "/og/og-cover.jpg", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sooro Campus – Réussis ton projet Campus France",
+    description:
+      "Guides, modèles et coaching jusqu’à la validation du dossier.",
+    images: ["/og/og-cover.jpg"],
+  },
+  alternates: { canonical: "/" },
 };
 
-// 6️⃣ composant RootLayout
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
-      {/* on applique la police à tout le body */}
-      <body className={inter.className}>
-        {children}
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
