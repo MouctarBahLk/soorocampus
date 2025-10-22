@@ -67,17 +67,36 @@ export default function ArticlePage() {
 
           {/* Contenu gratuit */}
           <article className="px-6 py-8">
-            <div className="max-w-4xl mx-auto space-y-8">
-              {art.freeSections.map(sec => (
-                <section key={sec.title} className="rounded-2xl border border-slate-200 p-8 bg-white hover:shadow-md transition-shadow">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-4">
-                    {sec.title}
-                  </h2>
-                  <p className="text-slate-700 leading-relaxed whitespace-pre-line text-lg">
-                    {sec.content}
-                  </p>
-                </section>
-              ))}
+  <div className="max-w-4xl mx-auto space-y-8">
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {art.freeSections.map((sec, i) => (
+        <div key={sec.title}>
+          <div className="p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              {/* pastille étape */}
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center">
+                {i + 1}
+              </div>
+
+              {/* contenu */}
+              <div className="flex-1">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                  {sec.title}
+                </h2>
+                <p className="mt-2 text-slate-700 leading-relaxed whitespace-pre-line text-lg">
+                  {sec.content}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* séparateur entre les étapes */}
+          {i < art.freeSections.length - 1 && (
+            <div className="h-px bg-slate-100" />
+          )}
+        </div>
+      ))}
+    </div>
 
               {/* Paywall doux avec contenu premium aperçu */}
               <div className="mt-12 space-y-6">
