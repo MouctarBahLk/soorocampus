@@ -232,6 +232,12 @@ export default function HomeClient() {
                 Tarifs
               </a>
               <Link
+                href="/aide-inscription"
+                className="text-gray-600 hover:text-blue-700 font-medium transition"
+              >
+                aide
+              </Link>
+              <Link
                 href="/auth/login"
                 className="block text-gray-600 hover:text-blue-700 font-medium"
               >

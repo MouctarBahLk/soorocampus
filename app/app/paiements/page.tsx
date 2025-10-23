@@ -1,123 +1,97 @@
-// app/app/paiements/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CreditCard, Smartphone, Lock, Check, ArrowRight } from 'lucide-react'
-
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+import { Smartphone, Lock, Check, ArrowRight, CreditCard } from 'lucide-react'
+import { COUNTRY_TO_CURRENCY, COUNTRY_PAYMENT_OPTIONS, CountryCode } from '@/lib/payments/config'
+import { priceForCurrency, formatAmount } from '@/lib/payments/pricing'
 
 const blue = "#0055FF"
-const ZERO_DEC = new Set([
-  'BIF','CLP','DJF','GNF','JPY','KMF','KRW','MGA','PYG','RWF','UGX','VND','VUV','XAF','XOF','XPF'
-])
 
-function formatAmount(amountMinor: number, currency: string) {
-  const cur = (currency || 'EUR').toUpperCase()
-  const value = ZERO_DEC.has(cur) ? amountMinor : amountMinor / 100
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cur }).format(value)
-}
-
-function CardPaymentForm({ label }: { label: string }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [submitting, setSubmitting] = useState(false)
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!stripe || !elements) return
-    setSubmitting(true)
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url:
-          typeof window !== 'undefined'
-            ? window.location.origin + '/app/paiements?status=success'
-            : 'http://localhost:3000/app/paiements?status=success',
-      },
-    })
-    setSubmitting(false)
-    if (error) alert(error.message)
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <PaymentElement />
-      <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-        <p className="text-sm text-blue-800">
-          🔒 Paiement 100% sécurisé via Stripe. Aucune donnée carte n’est stockée chez nous.
-        </p>
-      </div>
-      <Button
-        type="submit"
-        disabled={!stripe || submitting}
-        className="w-full py-6 rounded-xl text-lg font-bold shadow-lg"
-        style={{ backgroundColor: blue }}
-      >
-        <span className="flex items-center justify-center">
-          {submitting ? 'Paiement en cours...' : <>Payer {label} <ArrowRight className="ml-2 h-5 w-5" /></>}
-        </span>
-      </Button>
-    </form>
-  )
-}
+const COUNTRIES: { code: CountryCode; label: string }[] = [
+  { code: 'GN', label: 'Guinée' },
+  { code: 'SN', label: 'Sénégal' },
+  { code: 'CI', label: 'Côte dIvoire' },
+  { code: 'BJ', label: 'Bénin' },
+  { code: 'TG', label: 'Togo' },
+  { code: 'ML', label: 'Mali' },
+  { code: 'NE', label: 'Niger' },
+  { code: 'BF', label: 'Burkina Faso' },
+  { code: 'FR', label: 'France' },
+  { code: 'BE', label: 'Belgique' },
+  { code: 'DE', label: 'Allemagne' },
+  { code: 'ES', label: 'Espagne' },
+  { code: 'IT', label: 'Italie' },
+  { code: 'MA', label: 'Maroc' },
+  { code: 'OTHER', label: 'Autre pays' },
+]
 
 export default function PaiementsPage() {
-  const [selectedMethod, setSelectedMethod] = useState<'orange' | 'momo' | 'card' | null>(null)
+  const [country, setCountry] = useState<CountryCode>('GN')
+  const currency = useMemo(() => COUNTRY_TO_CURRENCY[country], [country])
+  const options = COUNTRY_PAYMENT_OPTIONS[country]
+
+  // Type de paiement
+  const [paymentType, setPaymentType] = useState<'mobile_money' | 'card'>('mobile_money')
+  
+  // Mobile Money
+  const [operator, setOperator] = useState<'orange' | 'mtn' | 'moov' | ''>('orange')
+  const [phone, setPhone] = useState('')
+
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // settings (depuis /api/settings)
-  const [amountMinor, setAmountMinor] = useState<number>(1500) // montant au plus petit incrément
-  const [currency, setCurrency] = useState<string>('EUR')
-
-  // Orange
-  const [orangePhone, setOrangePhone] = useState('')
-  // MoMo
-  const [momoPhone, setMomoPhone] = useState('')
-  const [momoOperator, setMomoOperator] = useState<'mtn' | 'moov' | ''>('')
-
-  // Stripe clientSecret quand on choisit "card"
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
-
-  // Charger settings une seule fois
   useEffect(() => {
-    (async () => {
-      const res = await fetch('/api/settings', { credentials: 'include' })
-      const data = await res.json()
-      if (data?.settings?.fee_amount_cents) setAmountMinor(Number(data.settings.fee_amount_cents))
-      if (data?.settings?.currency) setCurrency(String(data.settings.currency))
-    })()
-  }, [])
+    setOperator('orange')
+    setPhone('')
+    setError(null)
+  }, [country])
 
-  // Initialiser le PaymentIntent uniquement si “carte” sélectionné
-  useEffect(() => {
-    (async () => {
-      if (selectedMethod !== 'card') return
-      const res = await fetch('/api/stripe/create-payment-intent', {
+  const amountLocal = useMemo(() => priceForCurrency(currency), [currency])
+  const label = useMemo(() => formatAmount(amountLocal, currency), [amountLocal, currency])
+
+  const startPayment = async () => {
+    try {
+      setError(null)
+      setLoading(true)
+      
+      const body: any = { 
+        country, 
+        method: paymentType 
+      }
+      
+      // Ajouter les infos Mobile Money si nécessaire
+      if (paymentType === 'mobile_money') {
+        if (!phone || !operator) {
+          setError('Veuillez renseigner votre numéro et choisir un opérateur')
+          setLoading(false)
+          return
+        }
+        body.phone = phone
+        body.operator = operator
+      }
+      
+      const res = await fetch('/api/payments/create', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify(body),
       })
+      
       const data = await res.json()
-      setClientSecret(data.clientSecret || null)
-    })()
-  }, [selectedMethod])
-
-  const label = useMemo(() => formatAmount(amountMinor, currency), [amountMinor, currency])
-
-  async function handlePayment(e: React.FormEvent) {
-    e.preventDefault()
-    if (selectedMethod === 'card') return
-    setLoading(true)
-    // ici, c’est juste une démo pour Orange/MoMo
-    setTimeout(() => {
+      if (!res.ok) throw new Error(data.error || 'Impossible de créer le paiement')
+      
+      window.location.href = data.paymentUrl
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
       setLoading(false)
-      alert('Paiement envoyé ! Vous recevrez une confirmation par email.')
-    }, 1500)
+    }
   }
+
+  const canPay = paymentType === 'card' || (phone && operator)
 
   return (
     <div className="space-y-8">
@@ -127,204 +101,196 @@ export default function PaiementsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Méthodes de paiement */}
+        {/* Colonne gauche */}
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Orange Money */}
-            <button
-              onClick={() => setSelectedMethod('orange')}
-              className={`p-6 rounded-2xl border-2 transition-all ${
-                selectedMethod === 'orange'
-                  ? 'border-orange-500 bg-orange-50 shadow-lg'
-                  : 'border-gray-200 hover:border-orange-300 bg-white'
-              }`}
+          {/* Pays */}
+          <div className="space-y-2">
+            <label className="font-medium">Ton pays</label>
+            <select
+              value={country}
+              onChange={e => setCountry(e.target.value as CountryCode)}
+              className="w-full rounded-xl border p-3"
             >
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                  selectedMethod === 'orange' ? 'bg-orange-500' : 'bg-orange-100'
-                }`}>
-                  <Smartphone className={`h-8 w-8 ${
-                    selectedMethod === 'orange' ? 'text-white' : 'text-orange-600'
-                  }`} />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">Orange Money</p>
-                  <p className="text-xs text-gray-500 mt-1">Paiement mobile</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Mobile Money */}
-            <button
-              onClick={() => setSelectedMethod('momo')}
-              className={`p-6 rounded-2xl border-2 transition-all ${
-                selectedMethod === 'momo'
-                  ? 'border-emerald-500 bg-emerald-50 shadow-lg'
-                  : 'border-gray-200 hover:border-emerald-300 bg-white'
-              }`}
-            >
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                  selectedMethod === 'momo' ? 'bg-emerald-500' : 'bg-emerald-100'
-                }`}>
-                  <Smartphone className={`h-8 w-8 ${
-                    selectedMethod === 'momo' ? 'text-white' : 'text-emerald-600'
-                  }`} />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">Mobile Money</p>
-                  <p className="text-xs text-gray-500 mt-1">MTN ou Moov</p>
-                </div>
-              </div>
-            </button>
-
-            {/* Carte */}
-            <button
-              onClick={() => setSelectedMethod('card')}
-              className={`p-6 rounded-2xl border-2 transition-all ${
-                selectedMethod === 'card'
-                  ? 'border-blue-500 bg-blue-50 shadow-lg'
-                  : 'border-gray-200 hover:border-blue-300 bg-white'
-              }`}
-            >
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                  selectedMethod === 'card' ? 'bg-blue-500' : 'bg-blue-100'
-                }`}>
-                  <CreditCard className={`h-8 w-8 ${
-                    selectedMethod === 'card' ? 'text-white' : 'text-blue-600'
-                  }`} />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">Carte Bancaire</p>
-                  <p className="text-xs text-gray-500 mt-1">Visa, Mastercard</p>
-                </div>
-              </div>
-            </button>
+              {COUNTRIES.map(c => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              La devise et les moyens de paiement sont adaptés à ton pays (GNF / XOF / EUR).
+            </p>
           </div>
 
-          {/* Formulaires conditionnels */}
-          {selectedMethod && (
+          {/* Choix du type de paiement */}
+          <div className="space-y-3">
+            <label className="font-medium">Moyen de paiement</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentType('mobile_money')}
+                className={`p-4 rounded-xl border-2 font-semibold transition flex items-center justify-center gap-2 ${
+                  paymentType === 'mobile_money'
+                    ? 'border-blue-500 bg-blue-50 text-blue-900'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                <Smartphone className="h-5 w-5" />
+                Mobile Money
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentType('card')}
+                className={`p-4 rounded-xl border-2 font-semibold transition flex items-center justify-center gap-2 ${
+                  paymentType === 'card'
+                    ? 'border-blue-500 bg-blue-50 text-blue-900'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                <CreditCard className="h-5 w-5" />
+                Carte bancaire
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Money */}
+          {paymentType === 'mobile_money' && (
             <Card className="border-2 border-blue-200">
               <CardHeader>
-                <CardTitle>
-                  {selectedMethod === 'orange' && 'Paiement Orange Money'}
-                  {selectedMethod === 'momo' && 'Paiement Mobile Money'}
-                  {selectedMethod === 'card' && 'Paiement par Carte Bancaire'}
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Paiement Mobile Money
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Orange & MoMo (démo) */}
-                {(selectedMethod === 'orange' || selectedMethod === 'momo') && (
-                  <form onSubmit={handlePayment} className="space-y-4">
-                    {selectedMethod === 'orange' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Numéro Orange Money
-                          </label>
-                          <Input
-                            type="tel"
-                            placeholder="XX XX XX XX XX"
-                            value={orangePhone}
-                            onChange={(e) => setOrangePhone(e.target.value)}
-                            className="rounded-xl"
-                            required
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Format : 77 ou 78 suivi de 7 chiffres
-                          </p>
-                        </div>
-                        <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
-                          <p className="text-sm text-orange-800">
-                            📱 Vous recevrez une notification sur votre téléphone pour valider le paiement
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedMethod === 'momo' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Opérateur
-                          </label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setMomoOperator('mtn')}
-                              className={`p-4 rounded-xl border-2 font-semibold transition ${
-                                momoOperator === 'mtn'
-                                  ? 'border-yellow-500 bg-yellow-50 text-yellow-900'
-                                  : 'border-gray-200 hover:border-yellow-300'
-                              }`}
-                            >
-                              MTN Mobile Money
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setMomoOperator('moov')}
-                              className={`p-4 rounded-xl border-2 font-semibold transition ${
-                                momoOperator === 'moov'
-                                  ? 'border-blue-500 bg-blue-50 text-blue-900'
-                                  : 'border-gray-200 hover:border-blue-300'
-                              }`}
-                            >
-                              Moov Money
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Numéro de téléphone
-                          </label>
-                          <Input
-                            type="tel"
-                            placeholder="XX XX XX XX XX"
-                            value={momoPhone}
-                            onChange={(e) => setMomoPhone(e.target.value)}
-                            className="rounded-xl"
-                            required
-                          />
-                        </div>
-                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                          <p className="text-sm text-emerald-800">
-                            📱 Composez le code USSD qui s'affichera pour confirmer le paiement
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-6 rounded-xl text-lg font-bold shadow-lg"
-                      style={{ backgroundColor: blue }}
-                    >
-                      {loading ? 'Paiement en cours...' : <>Payer {label} <ArrowRight className="ml-2 h-5 w-5" /></>}
-                    </Button>
-                  </form>
+                {error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 mb-4">
+                    {error}
+                  </div>
                 )}
 
-                {/* Carte : Stripe Payment Element */}
-                {selectedMethod === 'card' && clientSecret && (
-                  <Elements
-                    stripe={stripePromise}
-                    options={{ clientSecret, appearance: { theme: 'stripe' } }}
-                  >
-                    <CardPaymentForm label={label} />
-                  </Elements>
-                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Opérateur</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setOperator('orange')}
+                        className={`p-3 rounded-xl border-2 font-semibold transition ${
+                          operator === 'orange'
+                            ? 'border-orange-500 bg-orange-50 text-orange-900'
+                            : 'border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        Orange Money
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOperator('mtn')}
+                        className={`p-3 rounded-xl border-2 font-semibold transition ${
+                          operator === 'mtn'
+                            ? 'border-yellow-500 bg-yellow-50 text-yellow-900'
+                            : 'border-gray-200 hover:border-yellow-300'
+                        }`}
+                      >
+                        MTN MoMo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOperator('moov')}
+                        className={`p-3 rounded-xl border-2 font-semibold transition ${
+                          operator === 'moov'
+                            ? 'border-blue-500 bg-blue-50 text-blue-900'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        Moov Money
+                      </button>
+                    </div>
+                  </div>
 
-                {selectedMethod === 'card' && !clientSecret && (
-                  <div className="text-sm text-gray-600">Initialisation du paiement…</div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Numéro de téléphone 
+                    </label>
+                    <Input
+                      type="tel"
+                      placeholder="Ex: 620000010"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="rounded-xl"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tu recevras une notification/USSD pour valider.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      Montant à payer : <strong>{label}</strong>
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Carte bancaire */}
+          {paymentType === 'card' && (
+            <Card className="border-2 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Paiement par carte bancaire
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 mb-4">
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-sm text-blue-800 mb-2">
+                      Montant à payer : <strong>{label}</strong>
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Tu seras redirigé vers une page sécurisée pour saisir tes informations de carte.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Paiement accepté : Visa, Mastercard</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Bouton de paiement */}
+          <Button
+            onClick={startPayment}
+            disabled={loading || !canPay}
+            className="w-full py-6 rounded-xl text-lg font-bold shadow-lg"
+            style={{ backgroundColor: blue }}
+          >
+            {loading ? 'Création du paiement…' : (
+              <>
+                Payer {label} <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
+          </Button>
+
+          <div className="flex items-center justify-center gap-2 p-3 bg-gray-50 rounded-xl text-sm text-gray-600">
+            <Smartphone className="h-4 w-4" />
+            <Lock className="h-4 w-4" />
+            <span>Paiement sécurisé via CinetPay</span>
+          </div>
         </div>
 
-        {/* Résumé */}
+        {/* Résumé à droite */}
         <div className="space-y-6">
           <Card className="sticky top-6">
             <CardHeader>
@@ -351,15 +317,11 @@ export default function PaiementsPage() {
                   <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-600">Accompagnement personnalisé</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-600">Messagerie avec l'équipe</span>
-                </div>
               </div>
 
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                 <p className="text-xs text-amber-800">
-                  ⚠️ Aucun remboursement après validation, même en cas d'abandon de la procédure.
+                  ⚠️ Aucun remboursement après validation.
                 </p>
               </div>
 

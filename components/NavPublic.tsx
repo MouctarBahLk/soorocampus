@@ -28,6 +28,12 @@ export default function NavPublic() {
             <a href="/#features" className="text-gray-600 hover:text-blue-700 font-medium transition">Services</a>
             <a href="/#resources" className="text-gray-600 hover:text-blue-700 font-medium transition">Articles & ressources</a>
             <a href="/#how-it-works" className="text-gray-600 hover:text-blue-700 font-medium transition">Comment ça marche</a>
+            <Link
+                href="/aide-inscription"
+                className="text-gray-600 hover:text-blue-700 font-medium transition"
+              >
+                aide
+              </Link>
             <a href="/#pricing" className="text-gray-600 hover:text-blue-700 font-medium transition">Tarifs</a>
             <Link
                 href="/aide-inscription"
@@ -59,6 +65,12 @@ export default function NavPublic() {
             <a href="/#resources" className="block text-gray-600 hover:text-blue-700 font-medium">Articles & ressources</a>
             <a href="/#how-it-works" className="block text-gray-600 hover:text-blue-700 font-medium">Comment ça marche</a>
             <a href="/#pricing" className="block text-gray-600 hover:text-blue-700 font-medium">Tarifs</a>
+            <Link
+                href="/aide-inscription"
+                className="text-gray-600 hover:text-blue-700 font-medium transition"
+              >
+                aide
+              </Link>
             <Link href="/auth/login" className="block text-gray-600 hover:text-blue-700 font-medium">Connexion</Link>
             <Link href="/auth/register" className="block bg-blue-700 text-white px-6 py-2 rounded-xl font-semibold text-center">S'inscrire</Link>
           </div>
