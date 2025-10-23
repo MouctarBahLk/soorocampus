@@ -29,6 +29,12 @@ export default function NavPublic() {
             <a href="/#resources" className="text-gray-600 hover:text-blue-700 font-medium transition">Articles & ressources</a>
             <a href="/#how-it-works" className="text-gray-600 hover:text-blue-700 font-medium transition">Comment ça marche</a>
             <a href="/#pricing" className="text-gray-600 hover:text-blue-700 font-medium transition">Tarifs</a>
+            <Link
+                href="/aide-inscription"
+                className="text-gray-600 hover:text-blue-700 font-medium transition"
+              >
+                aide 
+              </Link>
             <Link href="/auth/login" className="text-gray-600 hover:text-blue-700 font-medium transition">Connexion</Link>
             <Link href="/auth/register" className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-blue-700/30">
               S'inscrire gratuitement

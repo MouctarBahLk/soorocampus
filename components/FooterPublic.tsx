@@ -22,6 +22,14 @@ export default function FooterPublic() {
               <li><a href="/#resources" className="hover:text-white transition">Articles & ressources</a></li>
               <li><a href="/#how-it-works" className="hover:text-white transition">Comment ça marche</a></li>
               <li><a href="/#pricing" className="hover:text-white transition">Tarifs</a></li>
+
+              <li><Link
+                href="/aide-inscription"
+                className="hover:text-white transition"
+              >
+                aide pour t’inscrire ?
+              </Link>
+              </li>
             </ul>
           </div>
 

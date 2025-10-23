@@ -3,6 +3,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-browser'
+import HelpInline from "@/components/help-inline"
 
 // ✅ Composant qui contient toute la logique de connexion
 function LoginForm() {
@@ -148,6 +149,7 @@ function LoginForm() {
               )}
             </button>
           </form>
+          <HelpInline />
 
           {/* Divider */}
           <div className="relative my-6">

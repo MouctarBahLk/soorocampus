@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase-browser'
-
+import HelpInline from "@/components/help-inline"
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -248,7 +248,7 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
-
+          <HelpInline />
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">

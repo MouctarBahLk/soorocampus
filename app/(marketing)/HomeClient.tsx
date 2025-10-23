@@ -155,6 +155,12 @@ export default function HomeClient() {
                 Tarifs
               </a>
               <Link
+                href="/aide-inscription"
+                className="text-gray-600 hover:text-blue-700 font-medium transition"
+              >
+                aide
+              </Link>
+              <Link
                 href="/auth/login"
                 className="text-gray-600 hover:text-blue-700 font-medium transition"
               >
@@ -162,7 +168,7 @@ export default function HomeClient() {
               </Link>
               <Link
                 href="/auth/register"
-                className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-blue-700/30"
+                className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-2 rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-blue-700/30"
               >
                 S&apos;inscrire gratuitement
               </Link>

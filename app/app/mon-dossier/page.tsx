@@ -7,19 +7,20 @@ import StatusBadge from '@/components/status-badge'
 
 type DbDocRaw = {
   id: string
-  nom: string            // <- nom du fichier stocké en DB
-  url: string            // <- chemin dans le bucket (PAS une URL publique)
+  nom: string
+  url: string
   type_doc: string | null
   created_at: string
 }
 
 type DbDoc = {
   id: string
-  file_name: string      // pour l’UI
-  file_path: string      // chemin dans le bucket à resigner
+  file_name: string
+  file_path: string
   file_type: string | null
   created_at: string
 }
+
 type SignedDoc = DbDoc & { url: string | null }
 
 const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
@@ -29,7 +30,6 @@ async function getData() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return { user: null } as const
 
-  // Paiements
   const { data: paysRaw } = await sb
     .from('payments')
     .select('*')
@@ -38,7 +38,6 @@ async function getData() {
   const payments = Array.isArray(paysRaw) ? paysRaw : []
   const paid = payments.some(p => p.status === 'succeeded')
 
-  // Application (dossier)
   let { data: app } = await sb
     .from('applications')
     .select('*')
@@ -54,7 +53,6 @@ async function getData() {
     app = created ?? null
   }
 
-  // Documents — utiliser les bons champs (nom, url, type_doc)
   const { data: docsRaw } = await sb
     .from('documents')
     .select('id, nom, url, type_doc, created_at')
@@ -64,17 +62,16 @@ async function getData() {
   const docs: DbDoc[] = (docsRaw ?? []).map((d: DbDocRaw) => ({
     id: d.id,
     file_name: d.nom,
-    file_path: d.url,        // chemin dans le bucket
+    file_path: d.url,
     file_type: d.type_doc,
     created_at: d.created_at,
   }))
 
-  // Signer les URLs à partir du chemin (TTL court pour l’UI)
   const documents: SignedDoc[] = await Promise.all(
     docs.map(async d => {
       const { data } = await sb.storage
         .from(BUCKET)
-        .createSignedUrl(d.file_path, 60) // 60s (ajuste si tu veux)
+        .createSignedUrl(d.file_path, 60)
       return { ...d, url: data?.signedUrl ?? null }
     })
   )
@@ -108,6 +105,28 @@ export default async function MonDossier() {
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
     await sb.from('applications').update({ statut: 'en attente' }).eq('user_id', user.id)
+    revalidatePath('/app/mon-dossier')
+  }
+
+  // === suppression côté serveur (server action) ===
+  async function deleteDoc(formData: FormData) {
+    'use server'
+    const id = String(formData.get('id') ?? '')
+    const sb = await supabaseServer()
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return
+
+    const { data: doc } = await sb
+      .from('documents')
+      .select('id,user_id,url')
+      .eq('id', id)
+      .single()
+    if (!doc || doc.user_id !== user.id) return
+
+    const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
+    if (doc.url) await sb.storage.from(BUCKET).remove([doc.url])
+    await sb.from('documents').delete().eq('id', id)
+
     revalidatePath('/app/mon-dossier')
   }
 
@@ -197,9 +216,17 @@ export default async function MonDossier() {
                     {d.file_type ?? '—'} • {new Date(d.created_at).toLocaleString()}
                   </div>
                 </div>
-                {d.url
-                  ? <a className="rounded-xl border px-3 py-1.5 hover:bg-gray-50" href={d.url} target="_blank" rel="noreferrer">Voir</a>
-                  : <span className="text-xs text-gray-400">URL expirée</span>}
+                <div className="flex items-center gap-2">
+                  {d.url
+                    ? <a className="rounded-xl border px-3 py-1.5 hover:bg-gray-50" href={d.url} target="_blank" rel="noreferrer">Voir</a>
+                    : <span className="text-xs text-gray-400">URL expirée</span>}
+                  <form action={deleteDoc}>
+                    <input type="hidden" name="id" value={d.id} />
+                    <button className="rounded-xl border px-3 py-1.5 hover:bg-red-50" title="Supprimer définitivement">
+                      Supprimer
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>

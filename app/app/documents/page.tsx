@@ -1,4 +1,3 @@
-// app/documents/page.tsx - VERSION CLIENT
 "use client"
 
 import { useEffect, useState } from "react"
@@ -40,6 +39,7 @@ const SUB_TYPE_LABELS: { [key: string]: string } = {
 
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<DocRow[]>([])
+
   const [isLoading, setIsLoading] = useState(true)
   const [dossierCheck, setDossierCheck] = useState<any>(null)
   const [submitLoading, setSubmitLoading] = useState(false)
@@ -49,13 +49,11 @@ export default function DocumentsPage() {
   const loadData = async (skipLoading = false) => {
     try {
       if (!skipLoading) setIsLoading(true)
-      // Fetch documents
       const docRes = await fetch("/api/documents/list?t=" + Date.now())
       if (!docRes.ok) throw new Error("Erreur de chargement")
       const docData = await docRes.json()
       setDocs(docData.docs || [])
 
-      // Check dossier completion
       const checkRes = await fetch("/api/documents/check-dossier?t=" + Date.now())
       if (checkRes.ok) {
         const checkData = await checkRes.json()
@@ -73,6 +71,27 @@ export default function DocumentsPage() {
     loadData()
   }, [])
 
+  // === suppression côté client via l’API ===
+  const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer définitivement ce document ?")) return
+    setError(null)
+    try {
+      const res = await fetch("/api/documents/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Suppression impossible")
+
+      // retire localement pour éviter un reload complet
+      setDocs(prev => prev.filter(x => x.id !== id))
+      setSuccessMsg("Document supprimé.")
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }
+
   const handleSubmitDossier = async () => {
     if (!dossierCheck?.isComplete) {
       setError("Complète d'abord tous les documents requis !")
@@ -86,11 +105,10 @@ export default function DocumentsPage() {
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error)
-      
+
       setSuccessMsg("Dossier soumis avec succès !")
       setError(null)
-      
-      // Recharge immédiatement
+
       setTimeout(() => {
         window.location.reload()
       }, 500)
@@ -107,21 +125,24 @@ export default function DocumentsPage() {
 
   const badge = (statut?: string | null) => {
     const s = (statut ?? "").toLowerCase()
-    if (s.includes("valid")) return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-        <BadgeCheck className="h-3 w-3" /> validé
-      </span>
-    )
-    if (s.includes("attent")) return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
-        en attente
-      </span>
-    )
-    if (s.includes("soumis")) return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-        soumis
-      </span>
-    )
+    if (s.includes("valid"))
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+          <BadgeCheck className="h-3 w-3" /> validé
+        </span>
+      )
+    if (s.includes("attent"))
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+          en attente
+        </span>
+      )
+    if (s.includes("soumis"))
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+          soumis
+        </span>
+      )
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
         {statut ?? "—"}
@@ -131,15 +152,15 @@ export default function DocumentsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Mes documents</h1>
-          <p className="mt-1 text-gray-600">Gère tous tes documents Campus France</p>
-        </div>
-        <div className="flex justify-center items-center h-64 text-gray-600">
-          Chargement...
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Mes documents</h1>
+        <p className="mt-1 text-gray-600">Gère tous tes documents Campus France</p>
       </div>
+      <div className="flex justify-center items-center h-64 text-gray-600">
+        Chargement...
+      </div>
+    </div>
     )
   }
 
@@ -290,19 +311,30 @@ export default function DocumentsPage() {
                     </div>
                   </div>
 
-                  {d.link ? (
-                    <a
-                      href={d.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 flex-shrink-0"
+                  {/* Actions à droite : Voir + Supprimer */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {d.link ? (
+                      <a
+                        href={d.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800"
+                      >
+                        <Download className="h-4 w-4" />
+                        Voir
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">Indisponible</span>
+                    )}
+
+                    <button
+                      onClick={() => handleDelete(d.id)}
+                      className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-red-50"
+                      title="Supprimer définitivement"
                     >
-                      <Download className="h-4 w-4" />
-                      Voir
-                    </a>
-                  ) : (
-                    <span className="text-xs text-gray-400 flex-shrink-0">Indisponible</span>
-                  )}
+                      Supprimer
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
