@@ -260,17 +260,20 @@ export default function HomeClient() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
             <div>
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full text-blue-700 font-semibold text-sm mb-6">
+            <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full text-blue-700 font-semibold text-sm mb-6 animate-fadeInUp">
+
                 Votre réussite commence ici
               </div>
-              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+
                 Réussis ton projet <span className="text-blue-700">Campus France</span>
               </h1>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed animate-fadeInUp" style={{ animationDelay: '200ms' }}>
+
                 Accompagnement personnalisé, suivi de dossier en temps réel et
                 conseils d&apos;experts pour concrétiser tes études en France.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 animate-fadeInUp" style={{ animationDelay: '300ms' }}>
                 <Link
                   href="/auth/register"
                   className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-xl shadow-blue-700/30 transform hover:scale-105 text-center"

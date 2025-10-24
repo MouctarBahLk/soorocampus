@@ -28,12 +28,7 @@ export default function NavPublic() {
             <a href="/#features" className="text-gray-600 hover:text-blue-700 font-medium transition">Services</a>
             <a href="/#resources" className="text-gray-600 hover:text-blue-700 font-medium transition">Articles & ressources</a>
             <a href="/#how-it-works" className="text-gray-600 hover:text-blue-700 font-medium transition">Comment ça marche</a>
-            <Link
-                href="/aide-inscription"
-                className="text-gray-600 hover:text-blue-700 font-medium transition"
-              >
-                aide
-              </Link>
+            
             <a href="/#pricing" className="text-gray-600 hover:text-blue-700 font-medium transition">Tarifs</a>
             <Link
                 href="/aide-inscription"

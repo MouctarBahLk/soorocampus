@@ -2,10 +2,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Settings, Mail, Bell, Database, Shield, AlertTriangle } from 'lucide-react'
+import { Settings, Mail, Bell, Database, Shield, AlertTriangle, DollarSign } from 'lucide-react'
 import { supabase } from '@/lib/supabase-browser'
 
 type SettingsShape = {
@@ -14,6 +15,8 @@ type SettingsShape = {
   contact_phone?: string
   fee_amount_cents?: number
   currency?: 'EUR' | 'USD' | 'XOF' | string
+  // état global du paiement en 2× (optionnel, s’il est renvoyé par /api/settings)
+  allow_split_payment?: boolean
 }
 
 export default function ParametresPage() {
@@ -26,6 +29,7 @@ export default function ParametresPage() {
     contact_phone: '+33 X XX XX XX XX',
     fee_amount_cents: 2500,
     currency: 'EUR',
+    allow_split_payment: undefined,
   })
 
   // Sécurité → changement de mot de passe
@@ -97,13 +101,44 @@ export default function ParametresPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Paramètres</h1>
-        <p className="text-gray-600 mt-1">Configure la plateforme Sooro Campus</p>
+      {/* En-tête + bouton vers Tarification */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Paramètres</h1>
+          <p className="text-gray-600 mt-1">Configure la plateforme Sooro Campus</p>
+        </div>
+
+        <Button asChild className="bg-green-600 hover:bg-green-700 rounded-xl">
+          <Link href="/app/admin/parametres/tarification">
+            Gérer la tarification (prix & 2×)
+          </Link>
+        </Button>
       </div>
 
+      {/* Résumé tarification + lien secondaire */}
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <DollarSign className="h-5 w-5 text-green-700" />
+            <div>
+              <p className="text-sm text-green-800">
+                Tarification centrale (EUR/XOF/GNF) & activation du paiement en 2× par étudiant
+              </p>
+              {typeof s.allow_split_payment !== 'undefined' && (
+                <p className="text-xs text-green-700">
+                  2× global : <strong>{s.allow_split_payment ? 'activé' : 'désactivé'}</strong>
+                </p>
+              )}
+            </div>
+          </div>
+          <Button asChild variant="outline" className="rounded-xl border-green-300">
+            <Link href="/app/admin/parametres/tarification">Ouvrir la tarification</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Paramètres généraux — même design, mais contrôlé + sauvegarde */}
+        {/* Paramètres généraux */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -156,7 +191,7 @@ export default function ParametresPage() {
           </CardContent>
         </Card>
 
-        {/* Notifications — UI identique (démo) */}
+        {/* Notifications */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -192,7 +227,7 @@ export default function ParametresPage() {
           </CardContent>
         </Card>
 
-        {/* Tarification — même design, branché aux settings */}
+        {/* Tarification simple (fee + currency) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -243,7 +278,7 @@ export default function ParametresPage() {
           </CardContent>
         </Card>
 
-        {/* Sécurité — même design + vrai changement de mot de passe */}
+        {/* Sécurité */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -296,7 +331,7 @@ export default function ParametresPage() {
         </Card>
       </div>
 
-      {/* Base de données — inchangé */}
+      {/* Base de données */}
       <Card className="border-amber-200 bg-amber-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900">
@@ -319,7 +354,7 @@ export default function ParametresPage() {
         </CardContent>
       </Card>
 
-      {/* Zone de danger — inchangé */}
+      {/* Zone de danger */}
       <Card className="border-red-200 bg-red-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-red-900">
