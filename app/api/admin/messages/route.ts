@@ -11,7 +11,7 @@ async function requireAdmin() {
   if (!user) return { ok: false, code: 401 as const, sb }
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).maybeSingle()
   if (!profile || profile.role !== 'admin') return { ok: false, code: 403 as const, sb }
-  return { ok: true, sb }
+  return { ok: true, code: 200 as const, sb }
 }
 
 export async function GET(req: Request) {
@@ -22,31 +22,43 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const userId = url.searchParams.get('user_id')
 
+  // Fil d'un utilisateur (images signées)
   if (userId) {
     const { data, error } = await sb
       .from('messages')
-      .select('id, contenu, created_at, is_from_admin, user_id')
+      .select('id, contenu, image_path, created_at, is_from_admin, user_id')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 
     if (error) return json({ error: error.message }, 500)
 
-    const messages = (data ?? []).map(m => ({
-      id: m.id,
-      body: m.contenu,
-      created_at: m.created_at,
-      user_id: m.user_id,
-      is_from_admin: m.is_from_admin,
-    }))
+    const messages = await Promise.all(
+      (data ?? []).map(async (m) => {
+        let image_url: string | null = null
+        if (m.image_path) {
+          const { data: signed } = await sb
+            .storage.from('message-images')
+            .createSignedUrl(m.image_path, 60 * 10)
+          image_url = signed?.signedUrl ?? null
+        }
+        return {
+          id: m.id,
+          body: m.contenu,
+          created_at: m.created_at,
+          user_id: m.user_id,
+          is_from_admin: m.is_from_admin,
+          image_url,
+        }
+      })
+    )
     return json({ messages })
   }
 
-  // Dernier message par user
+  // Liste des conversations (dernier message)
   const { data, error } = await sb
     .from('messages')
     .select('user_id, contenu, created_at, profiles!inner(full_name, email)')
     .order('created_at', { ascending: false })
-
   if (error) return json({ error: error.message }, 500)
 
   const seen = new Set<string>()
@@ -54,12 +66,7 @@ export async function GET(req: Request) {
   for (const row of data ?? []) {
     if (seen.has(row.user_id)) continue
     seen.add(row.user_id)
-
-    // `profiles` peut arriver comme objet OU tableau selon la relation -> on sécurise
-    const prof: any = Array.isArray((row as any).profiles)
-      ? (row as any).profiles[0]
-      : (row as any).profiles
-
+    const prof: any = Array.isArray((row as any).profiles) ? (row as any).profiles[0] : (row as any).profiles
     conversations.push({
       user_id: row.user_id,
       user_email: prof?.email || 'inconnu',
@@ -78,23 +85,41 @@ export async function POST(req: Request) {
 
   const payload = await req.json().catch(() => null)
   const toUser = (payload?.user_id ?? '').trim()
-  const text = (payload?.body ?? '').trim()
+  const body = (payload?.body ?? '').trim()
+  const image_path = payload?.image_path ?? null
+
   if (!toUser) return json({ error: 'missing_user_id' }, 400)
-  if (!text) return json({ error: 'empty' }, 400)
+  if (!body && !image_path) return json({ error: 'empty' }, 400)
 
   const { data, error } = await sb
     .from('messages')
-    .insert({ user_id: toUser, contenu: text, is_from_admin: true, repondu: true })
-    .select('id, contenu, created_at, is_from_admin, user_id')
+    .insert({
+      user_id: toUser,
+      contenu: body || '📎 Image',
+      image_path,
+      is_from_admin: true,
+      repondu: true,
+      created_at: new Date().toISOString(),
+    })
+    .select('id, contenu, image_path, created_at, is_from_admin, user_id')
     .single()
 
   if (error) return json({ error: error.message }, 500)
+
+  let image_url: string | null = null
+  if (data.image_path) {
+    const { data: signed } = await sb
+      .storage.from('message-images')
+      .createSignedUrl(data.image_path, 60 * 10)
+    image_url = signed?.signedUrl ?? null
+  }
 
   return json({
     ok: true,
     message: {
       id: data.id,
-      body: data.contenu,           // <-- API stable
+      body: data.contenu,
+      image_url,
       created_at: data.created_at,
       user_id: data.user_id,
       is_from_admin: data.is_from_admin,
