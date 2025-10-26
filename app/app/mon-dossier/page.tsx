@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase-server'
 import UploadDropzone from '@/components/upload-dropzone'
 import StatusBadge from '@/components/status-badge'
-import { Upload, FileText, CheckCircle2, AlertCircle, MessageSquare, Sparkles, Calendar } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, MessageSquare, Sparkles, Calendar } from 'lucide-react'
 
 type DbDocRaw = {
   id: string
@@ -23,21 +23,34 @@ type DbDoc = {
 }
 
 type SignedDoc = DbDoc & { url: string | null }
+type ProfileRow = { full_name: string | null } | null
 
 const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
+
+/** Nom affichable : profiles.full_name > user_metadata > email */
+function getDisplayName(user: any, profile: ProfileRow): string {
+  return (
+    profile?.full_name?.trim() ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.display_name as string | undefined) ||
+    (user?.email ? user.email.split('@')[0] : 'Utilisateur')
+  )
+}
 
 async function getData() {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return { user: null } as const
 
-  // Récupérer le profil pour avoir le nom complet
+  // Profil (nom complet)
   const { data: profile } = await sb
     .from('profiles')
     .select('full_name')
     .eq('id', user.id)
-    .single()
+    .maybeSingle<ProfileRow>()
 
+  // Paiements (pour canUpload)
   const { data: paysRaw } = await sb
     .from('payments')
     .select('*')
@@ -46,6 +59,7 @@ async function getData() {
   const payments = Array.isArray(paysRaw) ? paysRaw : []
   const paid = payments.some(p => p.status === 'succeeded')
 
+  // Application
   let { data: app } = await sb
     .from('applications')
     .select('*')
@@ -61,6 +75,7 @@ async function getData() {
     app = created ?? null
   }
 
+  // Documents
   const { data: docsRaw } = await sb
     .from('documents')
     .select('id, nom, url, type_doc, created_at')
@@ -92,13 +107,16 @@ export default async function MonDossier() {
   if (!data.user) return <p>Connectez-vous.</p>
 
   const { user, profile, paid, app, documents } = data
-  const dossierStatut = (app?.statut ?? 'non_cree') as 'en attente' | 'validé' | 'refusé' | 'non_cree' | 'en cours'
+  const dossierStatut = (app?.statut ?? 'non_cree') as
+    | 'en attente' | 'validé' | 'refusé' | 'non_cree' | 'en cours'
+
   const readable =
     dossierStatut === 'non_cree' ? 'non créé'
     : dossierStatut === 'en cours' ? 'en cours'
     : dossierStatut
 
-  const displayName = profile?.full_name || user.email?.split('@')[0] || 'Utilisateur'
+  const displayName = getDisplayName(user, profile)
+  const canUpload = paid && (dossierStatut === 'non_cree' || dossierStatut === 'en cours')
 
   async function setEnCours() {
     'use server'
@@ -139,8 +157,6 @@ export default async function MonDossier() {
     revalidatePath('/app/mon-dossier')
   }
 
-  const canUpload = paid && (dossierStatut === 'non_cree' || dossierStatut === 'en cours')
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-7xl mx-auto px-6 py-12">
@@ -149,15 +165,15 @@ export default async function MonDossier() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
-                Mon dossier 📂
+                Mon dossier
               </h1>
               <p className="text-xl text-gray-600">
-                Bienvenue {displayName} 👋
+                Bienvenue {displayName}
               </p>
             </div>
             {!paid && (
-              <Link 
-                href="/app/paiements" 
+              <Link
+                href="/app/paiements"
                 className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 font-bold shadow-lg hover:shadow-xl transition-all"
               >
                 <Sparkles className="w-5 h-5" />
@@ -219,26 +235,11 @@ export default async function MonDossier() {
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
               <p className="text-sm font-semibold text-blue-900 mb-3">📋 Documents requis :</p>
               <ul className="text-sm text-blue-800 space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Photo d'identité fond blanc (≤ 450 Ko)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Relevés des 2–3 dernières années</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Relevé du bac + diplôme (si admis)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Attestation en cours (si applicable)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">•</span>
-                  <span>Passeport biométrique</span>
-                </li>
+                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Photo d'identité fond blanc (≤ 450 Ko)</li>
+                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Relevés des 2–3 dernières années</li>
+                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Relevé du bac + diplôme (si admis)</li>
+                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Attestation en cours (si applicable)</li>
+                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Passeport biométrique</li>
               </ul>
             </div>
 
@@ -294,10 +295,10 @@ export default async function MonDossier() {
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       {d.url ? (
-                        <a 
-                          className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-semibold transition-colors" 
-                          href={d.url} 
-                          target="_blank" 
+                        <a
+                          className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-semibold transition-colors"
+                          href={d.url}
+                          target="_blank"
                           rel="noreferrer"
                         >
                           Voir
@@ -330,8 +331,8 @@ export default async function MonDossier() {
               <p className="text-gray-600">Un expert vous répond selon votre dossier.</p>
             </div>
           </div>
-          <Link 
-            href="/app/conseils" 
+          <Link
+            href="/app/conseils"
             className="rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white px-6 py-3 font-bold hover:shadow-lg transition-all flex-shrink-0"
           >
             Obtenir des conseils

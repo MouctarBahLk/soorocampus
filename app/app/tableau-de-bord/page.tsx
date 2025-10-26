@@ -2,320 +2,410 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, Clock, FileText, MessageSquare, CreditCard } from "lucide-react"
+import {
+  CheckCircle2, Clock, FileText, MessageSquare, CreditCard,
+  Sparkles, ArrowRight, TrendingUp, Target, AlertCircle
+} from "lucide-react"
 import Link from "next/link"
 import { supabaseServer } from '@/lib/supabase-server'
 
-const blue = "#0055FF"
-
 type PayStatus = 'none' | 'partial' | 'full'
+type ProfileInfo = { payment_status?: PayStatus | null; full_name?: string | null } | null
+
+function getDisplayName(user: any, profile: ProfileInfo): string {
+  return (
+    profile?.full_name?.trim() ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.user_metadata?.name as string | undefined) ||
+    (user?.user_metadata?.display_name as string | undefined) ||
+    (user?.email ? user.email.split('@')[0] : 'Utilisateur')
+  )
+}
 
 async function getData() {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return null
 
-  // On récupère tout en parallèle
+  // Récupérations en parallèle
   const [
     { data: app },
     { data: docs },
     { data: messages },
-    { data: profile }
+    { data: profile },
+    // On regarde TOUJOURS s'il existe au moins un paiement "succeeded"
+    { data: pays }
   ] = await Promise.all([
     sb.from('applications').select('*').eq('user_id', user.id).maybeSingle(),
     sb.from('documents').select('id').eq('user_id', user.id),
     sb.from('messages').select('id').eq('user_id', user.id).eq('is_read', false),
-    sb.from('profiles').select('payment_status').eq('id', user.id).single()
+    sb.from('profiles').select('payment_status, full_name').eq('id', user.id).maybeSingle<ProfileInfo>(),
+    sb.from('payments').select('id').eq('user_id', user.id).eq('status', 'succeeded').limit(1),
   ])
 
-  // Source de vérité principale
+  const hasSucceeded = !!(pays && pays.length > 0)
+
+  // Règle d'or:
+  // - Si l'historique prouve un paiement "succeeded", on force l'état "full"
+  //   (utile pour les anciens comptes créés avant le champ payment_status).
+  // - Sinon on se base sur le profil (none/partial/…).
   let payment_status: PayStatus =
-    (profile?.payment_status as PayStatus | null) ?? 'none'
+    hasSucceeded ? 'full' : ((profile?.payment_status as PayStatus | null) ?? 'none')
 
-  // Fallback si jamais le champ n'est pas encore présent
-  if (!profile) {
-    const { data: pays } = await sb
-      .from('payments')
-      .select('status')
-      .eq('user_id', user.id)
-      .eq('status', 'succeeded')
-      .limit(1)
-
-    payment_status = pays && pays.length > 0 ? 'full' : 'none'
+  // Mise à niveau silencieuse du profil pour les anciens utilisateurs
+  if (hasSucceeded && profile?.payment_status !== 'full') {
+    await sb.from('profiles').update({ payment_status: 'full' }).eq('id', user.id)
   }
+
+  const displayName = getDisplayName(user, profile)
 
   return {
     user,
+    displayName,
     statut: app?.statut ?? 'non_cree',
     payment_status,
     docsCount: docs?.length ?? 0,
-    unreadMessages: messages?.length ?? 0
+    unreadMessages: messages?.length ?? 0,
   }
 }
 
 export default async function TableauEtudiantPage() {
   const data = await getData()
-  if (!data) return <p>Connecte-toi.</p>
+  if (!data) return <p>Connectez-vous.</p>
 
-  const { user, statut, payment_status, docsCount, unreadMessages } = data
+  const { displayName, statut, payment_status, docsCount, unreadMessages } = data
   const paid = payment_status === 'full'
   const paidPartial = payment_status === 'partial'
 
   return (
-    <div className="space-y-8">
-      {/* Bandeaux info selon le paiement */}
-      {paidPartial && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-          <p className="text-sm text-amber-800">
-            ✅ 1er versement reçu. Il reste le solde à payer pour que nous puissions
-            <strong> envoyer ton dossier à Campus France</strong> et planifier l’entretien.
-          </p>
-          <Link href="/app/paiements" className="inline-block mt-2">
-            <Button size="sm" className="rounded-xl" style={{ backgroundColor: blue }}>
-              Payer le montant restant
-            </Button>
-          </Link>
-        </div>
-      )}
-
-      {paid && (
-        <div className="p-4 rounded-xl bg-green-50 border border-green-200">
-          <p className="text-sm text-green-800">
-            🎉 Merci ! Paiement complet reçu. Tu peux maintenant finaliser ton dossier et demander l’envoi à Campus France.
-          </p>
-          <Link href="/app/mon-dossier" className="inline-block mt-2">
-            <Button size="sm" className="rounded-xl bg-green-600 hover:bg-green-700">
-              Ouvrir mon dossier
-            </Button>
-          </Link>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-600 mt-1">Bienvenue, {user.email?.split('@')[0]} 👋</p>
-        </div>
-        {!paid && (
-          <Link href="/app/paiements">
-            <Button style={{ backgroundColor: blue }} className="rounded-xl shadow-lg">
-              <CreditCard className="mr-2 h-4 w-4" />
-              Activer l'accompagnement
-            </Button>
-          </Link>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Statut dossier */}
-        <Card className="border-l-4" style={{ borderLeftColor: statut === 'validé' ? '#16a34a' : statut === 'en attente' ? '#f59e0b' : '#6b7280' }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Statut du dossier</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              {statut === 'validé' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-              {statut === 'en attente' && <Clock className="h-5 w-5 text-amber-600" />}
-              {(statut === 'non_cree' || statut === 'en cours') && <FileText className="h-5 w-5 text-gray-600" />}
-              <Badge className={
-                statut === 'validé' ? 'bg-green-600' :
-                statut === 'en attente' ? 'bg-amber-500' :
-                'bg-gray-500'
-              }>
-                {statut === 'non_cree' ? 'Non créé' : statut}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Paiement */}
-        <Card className="border-l-4" style={{ borderLeftColor: paid ? '#16a34a' : paidPartial ? '#f59e0b' : '#ef4444' }}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Paiement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <CreditCard className={`h-5 w-5 ${paid ? 'text-green-600' : paidPartial ? 'text-amber-600' : 'text-red-600'}`} />
-              <Badge className={
-                paid ? 'bg-green-600' :
-                paidPartial ? 'bg-amber-500' :
-                'bg-red-600'
-              }>
-                {paid ? 'Payé' : paidPartial ? 'Payé partiellement' : 'Non payé'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Documents */}
-        <Card className="border-l-4 border-l-blue-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-700" />
-                <span className="text-2xl font-bold">{docsCount}</span>
-              </div>
-              <Link href="/app/documents" className="text-sm text-blue-700 hover:underline">
-                Voir tout →
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Messages */}
-        <Card className="border-l-4 border-l-purple-600">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Messages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-purple-600" />
-                <span className="text-2xl font-bold">{unreadMessages}</span>
-              </div>
-              <Link href="/app/messages" className="text-sm text-purple-600 hover:underline">
-                Lire →
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Actions rapides */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Actions rapides</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Link href="/app/mon-dossier">
-              <Button variant="outline" className="w-full h-auto flex-col gap-2 py-6 rounded-xl hover:border-blue-700 hover:bg-blue-50">
-                <FileText className="h-6 w-6 text-blue-700" />
-                <span className="font-semibold">Mon dossier</span>
-                <span className="text-xs text-gray-500">Gérer mes documents</span>
-              </Button>
-            </Link>
-
-            <Link href="/app/paiements">
-              <Button variant="outline" className="w-full h-auto flex-col gap-2 py-6 rounded-xl hover:border-green-600 hover:bg-green-50">
-                <CreditCard className="h-6 w-6 text-green-600" />
-                <span className="font-semibold">Paiements</span>
-                <span className="text-xs text-gray-500">Voir mes reçus</span>
-              </Button>
-            </Link>
-
-            <Link href="/app/messages">
-              <Button variant="outline" className="w-full h-auto flex-col gap-2 py-6 rounded-xl hover:border-purple-600 hover:bg-purple-50">
-                <MessageSquare className="h-6 w-6 text-purple-600" />
-                <span className="font-semibold">Messagerie</span>
-                <span className="text-xs text-gray-500">Contacter l'équipe</span>
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Prochaines étapes */}
-      <Card className="bg-gradient-to-br from-blue-50 to-white border-blue-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span>📋</span>
-            Prochaines étapes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* 1. Pas payé */}
-          {payment_status === 'none' && (
-            <div className="flex items-start gap-3 p-4 bg-white rounded-xl border">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-700 font-bold">1</span>
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">Activer l'accompagnement</p>
-                <p className="text-sm text-gray-600">
-                  Effectue le paiement (ou le 1er versement) pour débloquer toutes les fonctionnalités.
-                </p>
-              </div>
-              <Link href="/app/paiements">
-                <Button size="sm" style={{ backgroundColor: blue }} className="rounded-xl">
-                  Payer
-                </Button>
-              </Link>
-            </div>
-          )}
-
-          {/* 2. Payé partiellement */}
-          {payment_status === 'partial' && (
-            <>
-              <div className="flex items-start gap-3 p-4 bg-white rounded-xl border">
-                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-green-700 font-bold">2</span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold">Compléter ton dossier</p>
-                  <p className="text-sm text-gray-600">
-                    Tu peux déjà déposer tes documents et préparer l’entretien.
-                    <br />⚠️ L’envoi à Campus France sera possible après paiement du solde.
-                  </p>
-                </div>
-                <Link href="/app/mon-dossier">
-                  <Button size="sm" style={{ backgroundColor: blue }} className="rounded-xl">
-                    Ouvrir mon dossier
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 bg-white rounded-xl border">
-                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-amber-700 font-bold">3</span>
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold">Régler le montant restant</p>
-                  <p className="text-sm text-gray-600">
-                    Paie le solde pour que nous envoyions ton dossier à Campus France et planifions le rendez-vous.
-                  </p>
-                </div>
-                <Link href="/app/paiements">
-                  <Button size="sm" className="rounded-xl" style={{ backgroundColor: blue }}>
-                    Payer le solde
-                  </Button>
-                </Link>
-              </div>
-            </>
-          )}
-
-          {/* 3. Payé totalement */}
-          {payment_status === 'full' && (
-            <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <p className="text-sm font-semibold">
-                Paiement terminé ✔︎ – termine la préparation et demande l’envoi à Campus France.
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-12">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+                Tableau de bord 
+              </h1>
+              <p className="text-xl text-gray-600">
+                Bienvenue, <span className="font-semibold text-gray-900">{displayName}</span> 
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Besoin d'aide */}
-      <Card>
-        <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6">
-          <div>
-            <p className="font-semibold text-lg">Besoin de conseils personnalisés ?</p>
-            <p className="text-sm text-gray-600">Un expert te répond selon ton dossier</p>
+            {!paid && (
+              <Link href="/app/paiements">
+                <Button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all font-bold text-lg">
+                  <Sparkles className="w-5 h-5" />
+                  Activer l'accompagnement
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            )}
           </div>
-          <Link href="/app/messages">
-            <Button style={{ backgroundColor: blue }} className="rounded-xl shadow-lg">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Contacter un expert
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+
+          {/* Bandeaux info selon le paiement */}
+          {paidPartial && (
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg mb-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-bold text-amber-900 mb-2">
+                    ✅ Premier versement reçu !
+                  </p>
+                  <p className="text-amber-800 mb-4">
+                    Il reste le solde à payer pour que nous puissions <strong>envoyer votre dossier à Campus France</strong> et planifier l'entretien.
+                  </p>
+                  <Link href="/app/paiements">
+                    <Button className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl shadow-md font-bold">
+                      Payer le montant restant
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {paid && (
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 shadow-lg mb-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-bold text-green-900 mb-2">
+                     Paiement complet reçu !
+                  </p>
+                  <p className="text-green-800 mb-4">
+                    Vous pouvez maintenant finaliser votre dossier et demander l'envoi à Campus France.
+                  </p>
+                  <Link href="/app/mon-dossier">
+                    <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-md font-bold">
+                      Ouvrir mon dossier
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-12">
+          {/* Statut dossier */}
+          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <span>Statut du dossier</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                {statut === 'validé' && <CheckCircle2 className="h-6 w-6 text-green-600" />}
+                {statut === 'en attente' && <Clock className="h-6 w-6 text-amber-600" />}
+                {(statut === 'non_cree' || statut === 'en cours') && <Target className="h-6 w-6 text-gray-600" />}
+                <Badge className={`text-sm font-bold px-3 py-1 ${
+                  statut === 'validé' ? 'bg-green-600 hover:bg-green-700' :
+                  statut === 'en attente' ? 'bg-amber-500 hover:bg-amber-600' :
+                  'bg-gray-500 hover:bg-gray-600'
+                }`}>
+                  {statut === 'non_cree' ? 'Non créé' : statut === 'en cours' ? 'En cours' : statut}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Paiement */}
+          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CreditCard className="h-5 w-5 text-green-600" />
+                </div>
+                <span>Paiement</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <CreditCard className={`h-6 w-6 ${paid ? 'text-green-600' : paidPartial ? 'text-amber-600' : 'text-red-600'}`} />
+                <Badge className={`text-sm font-bold px-3 py-1 ${
+                  paid ? 'bg-green-600 hover:bg-green-700' :
+                  paidPartial ? 'bg-amber-500 hover:bg-amber-600' :
+                  'bg-red-600 hover:bg-red-700'
+                }`}>
+                  {paid ? 'Payé' : paidPartial ? 'Partiel' : 'Non payé'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Documents */}
+          <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-purple-600" />
+                </div>
+                <span>Documents</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <span className="text-4xl font-bold text-gray-900">{docsCount}</span>
+                <Link href="/app/documents" className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1">
+                  Voir tout <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Messages */}
+          <Card className="border-2 border-cyan-200 bg-gradient-to-br from-cyan-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 text-cyan-600" />
+                </div>
+                <span>Messages</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-4xl font-bold text-gray-900">{unreadMessages}</span>
+                  {unreadMessages > 0 && (
+                    <span className="text-sm font-semibold text-cyan-600">non lus</span>
+                  )}
+                </div>
+                <Link href="/app/messages" className="text-sm font-semibold text-cyan-600 hover:text-cyan-700 flex items-center gap-1">
+                  Lire <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Actions rapides */}
+        <Card className="border-2 border-slate-200 shadow-lg mb-12">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b-2 border-slate-200">
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-slate-700" />
+              </div>
+              <span className="text-2xl">Actions rapides</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Link href="/app/mon-dossier" className="group">
+                <div className="h-full p-6 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <FileText className="h-7 w-7 text-blue-600" />
+                    </div>
+                    <span className="font-bold text-lg text-gray-900">Mon dossier</span>
+                    <span className="text-sm text-gray-600">Gérer mes documents</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link href="/app/paiements" className="group">
+                <div className="h-full p-6 rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white hover:border-green-400 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CreditCard className="h-7 w-7 text-green-600" />
+                    </div>
+                    <span className="font-bold text-lg text-gray-900">Paiements</span>
+                    <span className="text-sm text-gray-600">Voir mes reçus</span>
+                  </div>
+                </div>
+              </Link>
+
+              <Link href="/app/messages" className="group">
+                <div className="h-full p-6 rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center gap-3">
+                    <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <MessageSquare className="h-7 w-7 text-purple-600" />
+                    </div>
+                    <span className="font-bold text-lg text-gray-900">Messagerie</span>
+                    <span className="text-sm text-gray-600">Contacter l'équipe</span>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Prochaines étapes */}
+        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg mb-12">
+          <CardHeader className="border-b-2 border-blue-200">
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Target className="h-6 w-6 text-blue-600" />
+              </div>
+              <span className="text-2xl">Prochaines étapes</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-4">
+            {payment_status === 'none' && (
+              <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xl">1</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg text-gray-900 mb-2">Activer l'accompagnement</p>
+                  <p className="text-gray-700 mb-4">
+                    Effectuez le paiement (ou le 1er versement) pour débloquer toutes les fonctionnalités.
+                  </p>
+                  <Link href="/app/paiements">
+                    <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl font-bold shadow-md">
+                      Payer maintenant
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {payment_status === 'partial' && (
+              <>
+                <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xl">2</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg text-gray-900 mb-2">Compléter votre dossier</p>
+                    <p className="text-gray-700 mb-2">
+                      Vous pouvez déjà déposer vos documents et préparer l'entretien.
+                    </p>
+                    <p className="text-amber-700 font-semibold text-sm mb-4">
+                      ⚠️ L'envoi à Campus France sera possible après paiement du solde.
+                    </p>
+                    <Link href="/app/mon-dossier">
+                      <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-md">
+                        Ouvrir mon dossier
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-amber-200 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-xl">3</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg text-gray-900 mb-2">Régler le montant restant</p>
+                    <p className="text-gray-700 mb-4">
+                      Payez le solde pour que nous envoyions votre dossier à Campus France et planifions le rendez-vous.
+                    </p>
+                    <Link href="/app/paiements">
+                      <Button className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-md">
+                        Payer le solde
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {payment_status === 'full' && (
+              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-md">
+                <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0" />
+                <p className="font-bold text-lg text-green-900">
+                  Paiement terminé ✓ – Terminez la préparation et demandez l'envoi à Campus France.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Besoin d'aide */}
+        <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-lg">
+          <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="h-7 w-7 text-cyan-600" />
+              </div>
+              <div>
+                <p className="font-bold text-2xl text-gray-900 mb-2">Besoin de conseils personnalisés ?</p>
+                <p className="text-gray-700">Un expert vous répond selon votre dossier</p>
+              </div>
+            </div>
+            <Link href="/app/messages">
+              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all font-bold text-lg flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Contacter un expert
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

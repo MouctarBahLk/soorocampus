@@ -1,3 +1,4 @@
+// app/app/profil/page.tsx
 import { supabaseServer } from '@/lib/supabase-server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,25 @@ import SupportForm from './SupportForm'
 import AvatarUpload from './AvatarUpload'
 import DeleteAccountButton from './DeleteAccountButton'
 
-// action serveur identique à la tienne
+/** Nettoyage très simple du numéro :
+ * - on garde uniquement + et chiffres
+ * - on enlève les espaces/traits/points
+ * - on coupe à 20 caractères max
+ * - retourne null si rien après nettoyage
+ */
+function sanitizePhone(raw: string | null): string | null {
+  if (!raw) return null
+  const cleaned = raw.replace(/[^\d+]/g, '').slice(0, 20)
+  return cleaned.length ? cleaned : null
+}
+
+/** (optionnel) mini validation : 7 à 15 chiffres hors +  */
+function isLikelyPhone(p: string): boolean {
+  const digits = p.replace(/\D/g, '')
+  return digits.length >= 7 && digits.length <= 15
+}
+
+// --------- ACTION SERVEUR ----------
 async function updateProfileAction(formData: FormData) {
   'use server'
   const sb = await supabaseServer()
@@ -17,13 +36,29 @@ async function updateProfileAction(formData: FormData) {
   if (!user) redirect('/auth/login')
 
   const full_name = (formData.get('full_name') as string | null)?.trim() || null
-  const phone = (formData.get('phone') as string | null)?.trim() || null
+  const phoneIn = (formData.get('phone') as string | null) ?? null
   const country = (formData.get('country') as string | null)?.trim() || null
 
-  await sb.from('profiles').update({ full_name, phone, country }).eq('id', user.id)
+  const phone = sanitizePhone(phoneIn)
+
+  // On n’empêche pas l’enregistrement si le numéro n’est pas parfait.
+  // Si tu veux être strict, décommente la vérification suivante :
+  // if (phone && !isLikelyPhone(phone)) {
+  //   // On pourrait lever une erreur ou ignorer la maj du phone
+  //   // ici je l’ignore pour ne pas bloquer l’utilisateur
+  // }
+
+  await sb
+    .from('profiles')
+    .update({ full_name, phone, country })
+    .eq('id', user.id)
+
+  // Revalider la page profil + la home étudiante où on affiche le nom
   revalidatePath('/app/profil')
+  revalidatePath('/app')
 }
 
+// --------- PAGE ----------
 export default async function ProfilPage() {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
@@ -35,7 +70,7 @@ export default async function ProfilPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  // URL publique (avec cache-busting)
+  // URL publique (cache-busting)
   let avatarUrl: string | null = null
   if (profile?.avatar_url) {
     const { data: pub } = sb.storage.from('avatars').getPublicUrl(profile.avatar_url)
@@ -50,11 +85,10 @@ export default async function ProfilPage() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Carte identité */}
         <Card className="lg:col-span-1">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
-
-              {/* 👉 Ici on passe bien l’URL publique au composant */}
               <AvatarUpload avatarUrl={avatarUrl} hasAvatar={!!profile?.avatar_url} />
 
               <h2 className="text-xl font-bold text-gray-900 mt-4">
@@ -92,7 +126,10 @@ export default async function ProfilPage() {
                 </div>
 
                 <div className="mt-3 w-full">
-                  <Link href="/auth/forgot" className="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                  <Link
+                    href="/auth/forgot"
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
                     Changer mon mot de passe
                   </Link>
                 </div>
@@ -101,7 +138,7 @@ export default async function ProfilPage() {
           </CardContent>
         </Card>
 
-        {/* Formulaire de modification */}
+        {/* Formulaire d’édition */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Informations personnelles</CardTitle>
@@ -128,9 +165,15 @@ export default async function ProfilPage() {
                   name="phone"
                   type="tel"
                   defaultValue={profile?.phone ?? ''}
+                  inputMode="tel"
+                  pattern="[\d+\s().-]{7,20}"
+                  title="Saisis un numéro valide (ex: +224 620 00 00 00)"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="+33 6 12 34 56 78"
+                  placeholder="+224 620 00 00 00"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Astuce : indique le préfixe international (ex. <strong>+224</strong> pour la Guinée).
+                </p>
               </div>
 
               <div>
@@ -167,7 +210,7 @@ export default async function ProfilPage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Pour changer ton email, contacte le support
+                  Pour changer ton email, contacte le support.
                 </p>
               </div>
 

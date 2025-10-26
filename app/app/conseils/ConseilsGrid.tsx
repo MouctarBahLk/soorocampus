@@ -196,7 +196,7 @@ export default function ConseilsGrid({ initialPaid }: { initialPaid: boolean }) 
               </div>
               <h2 className="text-3xl md:text-4xl font-bold mb-4">Débloquez tous les guides</h2>
               <p className="mb-8 text-blue-100 text-lg max-w-2xl mx-auto">
-                Accès complet à 500+ ressources, modèles éditables, simulations d'entretien et accompagnement personnalisé
+                Accès complet à 200+ ressources, modèles éditables, simulations d'entretien et accompagnement personnalisé
               </p>
               <Link
                 href="/app/paiements"
