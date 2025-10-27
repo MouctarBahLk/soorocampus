@@ -1,9 +1,10 @@
+// app/app/mon-dossier/page.tsx
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
 import { supabaseServer } from '@/lib/supabase-server'
 import UploadDropzone from '@/components/upload-dropzone'
 import StatusBadge from '@/components/status-badge'
-import { Upload, FileText, CheckCircle2, MessageSquare, Sparkles, Calendar } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, MessageSquare, Sparkles, Calendar, AlertCircle } from 'lucide-react'
 
 type DbDocRaw = {
   id: string
@@ -22,7 +23,7 @@ type DbDoc = {
 }
 
 type SignedDoc = DbDoc & { url: string | null }
-type ProfileRow = { full_name: string | null } | null
+type ProfileRow = { full_name: string | null; payment_status?: 'none' | 'partial' | 'full' } | null
 
 const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
 
@@ -41,19 +42,12 @@ async function getData() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return { user: null } as const
 
+  // 👉 On lit aussi payment_status ici
   const { data: profile } = await sb
     .from('profiles')
-    .select('full_name')
+    .select('full_name, payment_status')
     .eq('id', user.id)
     .maybeSingle<ProfileRow>()
-
-  const { data: paysRaw } = await sb
-    .from('payments')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-  const payments = Array.isArray(paysRaw) ? paysRaw : []
-  const paid = payments.some(p => p.status === 'succeeded')
 
   let { data: app } = await sb
     .from('applications')
@@ -93,14 +87,17 @@ async function getData() {
     })
   )
 
-  return { user, profile, paid, app, documents } as const
+  const paymentStatus: 'none' | 'partial' | 'full' = (profile?.payment_status as any) || 'none'
+
+  return { user, profile, app, documents, paymentStatus } as const
 }
 
 export default async function MonDossier() {
   const data = await getData()
   if (!data.user) return <p>Connectez-vous.</p>
 
-  const { user, profile, paid, app, documents } = data
+  const { user, profile, app, documents, paymentStatus } = data
+
   const dossierStatut = (app?.statut ?? 'non_cree') as
     | 'en attente' | 'validé' | 'refusé' | 'non_cree' | 'en cours'
 
@@ -110,7 +107,9 @@ export default async function MonDossier() {
       : dossierStatut
 
   const displayName = getDisplayName(user, profile)
-  const canUpload = paid && (dossierStatut === 'non_cree' || dossierStatut === 'en cours')
+
+  // ✅ Upload autorisé SI paiement au moins partiel (validé manuellement par admin)
+  const canUpload = (paymentStatus !== 'none') && (dossierStatut === 'non_cree' || dossierStatut === 'en cours')
 
   async function setEnCours() {
     'use server'
@@ -126,6 +125,18 @@ export default async function MonDossier() {
     const sb = await supabaseServer()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
+
+    // ❗ Sécurité côté serveur : blocage si paiement pas complet
+    const { data: prof } = await sb
+      .from('profiles')
+      .select('payment_status')
+      .eq('id', user.id)
+      .single()
+
+    if (prof?.payment_status !== 'full') {
+      return { error: 'Paiement complet requis pour envoyer le dossier' }
+    }
+
     await sb.from('applications').update({ statut: 'en attente' }).eq('user_id', user.id)
     revalidatePath('/app/mon-dossier')
   }
@@ -165,7 +176,7 @@ export default async function MonDossier() {
                 Bienvenue <span className="font-semibold text-gray-900">{displayName}</span>
               </p>
             </div>
-            {!paid && (
+            {paymentStatus === 'none' && (
               <Link
                 href="/app/paiements"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-5 py-3 sm:px-6 sm:py-3 font-bold shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
@@ -200,7 +211,9 @@ export default async function MonDossier() {
                 </div>
                 <div className="text-sm font-semibold text-gray-600">Statut du paiement</div>
               </div>
-              <StatusBadge status={paid ? 'payé' : 'non payé'} />
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                {paymentStatus === 'full' ? 'payé (complet)' : paymentStatus === 'partial' ? 'payé (partiel)' : 'non payé'}
+              </div>
             </div>
 
             <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4 sm:p-6 hover:shadow-lg transition-shadow">
@@ -226,34 +239,51 @@ export default async function MonDossier() {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Déposer les documents</h2>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 sm:mb-6">
-              <p className="text-sm font-semibold text-blue-900 mb-3">📋 Documents requis :</p>
-              <ul className="text-sm text-blue-800 space-y-2">
-                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Photo d'identité fond blanc (≤ 450 Ko)</li>
-                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Relevés des 2–3 dernières années</li>
-                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Relevé du bac + diplôme (si admis)</li>
-                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Attestation en cours (si applicable)</li>
-                <li className="flex items-start gap-2"><span className="text-blue-600 mt-0.5">•</span> Passeport biométrique</li>
-              </ul>
-            </div>
+            {/* Alerte paiement partiel */}
+            {paymentStatus === 'partial' && (
+              <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 mb-5">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-900 mb-1">⚠️ Paiement partiel reçu</p>
+                    <p className="text-sm text-amber-800">
+                      Vous pouvez déposer vos documents maintenant. <strong>L'envoi final du dossier est bloqué</strong> jusqu'au paiement du solde.
+                    </p>
+                    <Link
+                      href="/app/paiements"
+                      className="inline-block mt-3 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold transition text-sm"
+                    >
+                      Payer le solde maintenant
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <UploadDropzone disabled={!canUpload} />
 
             <div className="mt-5 flex flex-col sm:flex-row gap-3">
-              {dossierStatut === 'non_cree' && paid && (
+              {dossierStatut === 'non_cree' && paymentStatus !== 'none' && (
                 <form action={setEnCours} className="flex-1">
                   <button className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-5 py-3 font-bold hover:shadow-lg transition-all">
                     Créer mon dossier
                   </button>
                 </form>
               )}
-              {dossierStatut === 'en cours' && paid && (
+              {dossierStatut === 'en cours' && paymentStatus !== 'none' && (
                 <form action={deposer} className="flex-1">
                   <button
-                    disabled={!documents.length}
+                    disabled={!documents.length || paymentStatus !== 'full'}
                     className="w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white px-5 py-3 font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg transition-all"
                   >
-                    Déposer mon dossier
+                    {paymentStatus !== 'full' ? (
+                      <>
+                        🔒 Déposer mon dossier
+                        <span className="block text-xs mt-1">Paiement complet requis</span>
+                      </>
+                    ) : (
+                      'Déposer mon dossier'
+                    )}
                   </button>
                 </form>
               )}

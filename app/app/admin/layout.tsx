@@ -2,6 +2,9 @@ import type { ReactNode } from 'react'
 import AdminSidebar from '@/components/admin-sidebar'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { DollarSign, CheckCircle2 } from 'lucide-react'
+
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   try { 
@@ -25,3 +28,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     </div>
   )
 }
+<Link href="/app/admin/valider-paiements">
+  <div className="p-6 rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white hover:shadow-lg transition-all cursor-pointer">
+    <div className="flex items-center gap-4 mb-4">
+      <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
+        <DollarSign className="w-7 h-7 text-green-600" />
+      </div>
+      <div>
+        <h3 className="font-bold text-lg text-gray-900">Valider paiements</h3>
+        <p className="text-sm text-gray-600">Via WhatsApp</p>
+      </div>
+    </div>
+    <p className="text-sm text-gray-700">
+      Validez manuellement les paiements reçus et débloquez l'accès aux étudiants
+    </p>
+  </div>
+</Link>

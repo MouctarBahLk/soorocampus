@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DollarSign, Users, Check, AlertCircle } from 'lucide-react'
+import { DollarSign, Users, Check, AlertCircle, CreditCard } from 'lucide-react'
+import Link from 'next/link'
 
 type PricingSettings = {
   price_eur: number      // en centimes (ex: 15000 = 150€)
@@ -45,16 +46,12 @@ export default function TarificationPage() {
       // Charger les prix
       const res = await fetch('/api/admin/pricing', { credentials: 'include' })
       const data = await res.json()
-      if (data.settings) {
-        setSettings(data.settings)
-      }
+      if (data.settings) setSettings(data.settings)
 
       // Charger les étudiants
       const studRes = await fetch('/api/admin/students', { credentials: 'include' })
       const studData = await studRes.json()
-      if (studData.students) {
-        setStudents(studData.students)
-      }
+      if (studData.students) setStudents(studData.students)
     } catch (e) {
       console.error(e)
     }
@@ -85,9 +82,8 @@ export default function TarificationPage() {
         credentials: 'include',
         body: JSON.stringify({ student_id: studentId, enabled }),
       })
-      
       // Mise à jour locale
-      setStudents(prev => 
+      setStudents(prev =>
         prev.map(s => s.id === studentId ? { ...s, split_payment_enabled: enabled } : s)
       )
     } catch (e: any) {
@@ -95,16 +91,27 @@ export default function TarificationPage() {
     }
   }
 
-  const filteredStudents = students.filter(s => 
+  const filteredStudents = students.filter(s =>
     s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Tarification</h1>
-        <p className="text-gray-600 mt-1">Configure les prix et le paiement en 2 fois</p>
+      {/* En-tête + bouton de raccourci */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Tarification</h1>
+          <p className="text-gray-600 mt-1">Configure les prix et le paiement en 2 fois</p>
+        </div>
+
+        {/* Bouton vers Validation des paiements */}
+        <Link href="/app/admin/valider-paiements">
+          <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Gérer les paiements
+          </Button>
+        </Link>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -125,9 +132,9 @@ export default function TarificationPage() {
                 type="number"
                 step="0.01"
                 value={(settings.price_eur / 100).toFixed(2)}
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  price_eur: Math.round(parseFloat(e.target.value || '0') * 100) 
+                onChange={e => setSettings(prev => ({
+                  ...prev,
+                  price_eur: Math.round(parseFloat(e.target.value || '0') * 100)
                 }))}
                 className="rounded-xl"
                 disabled={loading}
@@ -144,9 +151,9 @@ export default function TarificationPage() {
               <Input
                 type="number"
                 value={settings.price_xof}
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  price_xof: parseInt(e.target.value || '0') 
+                onChange={e => setSettings(prev => ({
+                  ...prev,
+                  price_xof: parseInt(e.target.value || '0')
                 }))}
                 className="rounded-xl"
                 disabled={loading}
@@ -163,9 +170,9 @@ export default function TarificationPage() {
               <Input
                 type="number"
                 value={settings.price_gnf}
-                onChange={e => setSettings(prev => ({ 
-                  ...prev, 
-                  price_gnf: parseInt(e.target.value || '0') 
+                onChange={e => setSettings(prev => ({
+                  ...prev,
+                  price_gnf: parseInt(e.target.value || '0')
                 }))}
                 className="rounded-xl"
                 disabled={loading}
@@ -186,9 +193,9 @@ export default function TarificationPage() {
                 <input
                   type="checkbox"
                   checked={settings.allow_split_payment}
-                  onChange={e => setSettings(prev => ({ 
-                    ...prev, 
-                    allow_split_payment: e.target.checked 
+                  onChange={e => setSettings(prev => ({
+                    ...prev,
+                    allow_split_payment: e.target.checked
                   }))}
                   className="h-4 w-4 text-blue-600 rounded"
                 />
@@ -244,7 +251,7 @@ export default function TarificationPage() {
                       Aucun étudiant trouvé
                     </p>
                   )}
-                  
+
                   {filteredStudents.map(student => (
                     <div
                       key={student.id}
@@ -254,10 +261,10 @@ export default function TarificationPage() {
                         <p className="font-medium text-sm">{student.name || student.email}</p>
                         <p className="text-xs text-gray-500">{student.email}</p>
                       </div>
-                      
+
                       <button
                         onClick={() => toggleSplitPayment(
-                          student.id, 
+                          student.id,
                           !student.split_payment_enabled
                         )}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
@@ -298,7 +305,7 @@ export default function TarificationPage() {
                 </p>
               )}
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl">
               <p className="text-xs text-gray-500 mb-1">Afrique Ouest (XOF)</p>
               <p className="text-2xl font-bold text-blue-600">
@@ -310,7 +317,7 @@ export default function TarificationPage() {
                 </p>
               )}
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl">
               <p className="text-xs text-gray-500 mb-1">Guinée (GNF)</p>
               <p className="text-2xl font-bold text-blue-600">
