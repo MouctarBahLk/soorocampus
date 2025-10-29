@@ -27,13 +27,11 @@ async function getData() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return null
 
-  // Récupérations en parallèle
   const [
     { data: app },
     { data: docs },
     { data: messages },
     { data: profile },
-    // On regarde TOUJOURS s'il existe au moins un paiement "succeeded"
     { data: pays }
   ] = await Promise.all([
     sb.from('applications').select('*').eq('user_id', user.id).maybeSingle(),
@@ -44,15 +42,9 @@ async function getData() {
   ])
 
   const hasSucceeded = !!(pays && pays.length > 0)
-
-  // Règle d'or:
-  // - Si l'historique prouve un paiement "succeeded", on force l'état "full"
-  //   (utile pour les anciens comptes créés avant le champ payment_status).
-  // - Sinon on se base sur le profil (none/partial/…).
   let payment_status: PayStatus =
     hasSucceeded ? 'full' : ((profile?.payment_status as PayStatus | null) ?? 'none')
 
-  // Mise à niveau silencieuse du profil pour les anciens utilisateurs
   if (hasSucceeded && profile?.payment_status !== 'full') {
     await sb.from('profiles').update({ payment_status: 'full' }).eq('id', user.id)
   }
@@ -78,22 +70,26 @@ export default async function TableauEtudiantPage() {
   const paidPartial = payment_status === 'partial'
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-7xl mx-auto px-6 py-12">
+    <div className="min-h-[100dvh] bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12">
         {/* Header */}
-        <div className="mb-12">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
+        <div className="mb-10 sm:mb-12">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 sm:gap-6 mb-6 sm:mb-8">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
-                Tableau de bord 
+              <h1 className="text-[28px] leading-tight sm:text-5xl font-bold text-gray-900 mb-2 sm:mb-3">
+                Tableau de bord
               </h1>
-              <p className="text-xl text-gray-600">
-                Bienvenue, <span className="font-semibold text-gray-900">{displayName}</span> 
+              <p className="text-[15px] sm:text-xl text-gray-600">
+                Bienvenue, <span className="font-semibold text-gray-900">{displayName}</span>
               </p>
             </div>
             {!paid && (
-              <Link href="/app/paiements">
-                <Button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all font-bold text-lg">
+              <Link href="/app/paiements" className="w-full md:w-auto">
+                <Button
+                  className="w-full md:w-auto min-h-[48px] text-[16px] sm:text-lg
+                             flex items-center justify-center gap-2
+                             bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700
+                             text-white px-5 sm:px-8 py-3 sm:py-4 rounded-2xl shadow-lg hover:shadow-xl font-bold">
                   <Sparkles className="w-5 h-5" />
                   Activer l'accompagnement
                   <ArrowRight className="w-5 h-5" />
@@ -104,20 +100,20 @@ export default async function TableauEtudiantPage() {
 
           {/* Bandeaux info selon le paiement */}
           {paidPartial && (
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg mb-6">
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg mb-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-lg font-bold text-amber-900 mb-2">
+                  <p className="text-base sm:text-lg font-bold text-amber-900 mb-2">
                     ✅ Premier versement reçu !
                   </p>
-                  <p className="text-amber-800 mb-4">
+                  <p className="text-[15px] sm:text-base text-amber-800 mb-4">
                     Il reste le solde à payer pour que nous puissions <strong>envoyer votre dossier à Campus France</strong> et planifier l'entretien.
                   </p>
-                  <Link href="/app/paiements">
-                    <Button className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl shadow-md font-bold">
+                  <Link href="/app/paiements" className="w-full sm:w-auto inline-block">
+                    <Button className="w-full sm:w-auto min-h-[44px] text-[16px] bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl shadow-md font-bold">
                       Payer le montant restant
                     </Button>
                   </Link>
@@ -127,20 +123,20 @@ export default async function TableauEtudiantPage() {
           )}
 
           {paid && (
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 shadow-lg mb-6">
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 shadow-lg mb-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-lg font-bold text-green-900 mb-2">
-                     Paiement complet reçu !
+                  <p className="text-base sm:text-lg font-bold text-green-900 mb-2">
+                    Paiement complet reçu !
                   </p>
-                  <p className="text-green-800 mb-4">
+                  <p className="text-[15px] sm:text-base text-green-800 mb-4">
                     Vous pouvez maintenant finaliser votre dossier et demander l'envoi à Campus France.
                   </p>
-                  <Link href="/app/mon-dossier">
-                    <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-md font-bold">
+                  <Link href="/app/mon-dossier" className="w-full sm:w-auto inline-block">
+                    <Button className="w-full sm:w-auto min-h-[44px] text-[16px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-md font-bold">
                       Ouvrir mon dossier
                     </Button>
                   </Link>
@@ -151,9 +147,9 @@ export default async function TableauEtudiantPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-12">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10 sm:mb-12">
           {/* Statut dossier */}
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="overflow-visible md:overflow-hidden border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -179,7 +175,7 @@ export default async function TableauEtudiantPage() {
           </Card>
 
           {/* Paiement */}
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="overflow-visible md:overflow-hidden border-2 border-green-200 bg-gradient-to-br from-green-50 to-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -203,7 +199,7 @@ export default async function TableauEtudiantPage() {
           </Card>
 
           {/* Documents */}
-          <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="overflow-visible md:overflow-hidden border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -214,7 +210,7 @@ export default async function TableauEtudiantPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <span className="text-4xl font-bold text-gray-900">{docsCount}</span>
+                <span className="text-3xl sm:text-4xl font-bold text-gray-900">{docsCount}</span>
                 <Link href="/app/documents" className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1">
                   Voir tout <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -223,7 +219,7 @@ export default async function TableauEtudiantPage() {
           </Card>
 
           {/* Messages */}
-          <Card className="border-2 border-cyan-200 bg-gradient-to-br from-cyan-50 to-white shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="overflow-visible md:overflow-hidden border-2 border-cyan-200 bg-gradient-to-br from-cyan-50 to-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                 <div className="w-10 h-10 bg-cyan-100 rounded-lg flex items-center justify-center">
@@ -235,7 +231,7 @@ export default async function TableauEtudiantPage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-4xl font-bold text-gray-900">{unreadMessages}</span>
+                  <span className="text-3xl sm:text-4xl font-bold text-gray-900">{unreadMessages}</span>
                   {unreadMessages > 0 && (
                     <span className="text-sm font-semibold text-cyan-600">non lus</span>
                   )}
@@ -249,19 +245,19 @@ export default async function TableauEtudiantPage() {
         </div>
 
         {/* Actions rapides */}
-        <Card className="border-2 border-slate-200 shadow-lg mb-12">
+        <Card className="overflow-visible md:overflow-hidden border-2 border-slate-200 shadow-lg mb-10 sm:mb-12">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b-2 border-slate-200">
             <CardTitle className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-slate-700" />
               </div>
-              <span className="text-2xl">Actions rapides</span>
+              <span className="text-xl sm:text-2xl">Actions rapides</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Link href="/app/mon-dossier" className="group">
-                <div className="h-full p-6 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer">
+                <div className="h-full p-5 sm:p-6 rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer">
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                       <FileText className="h-7 w-7 text-blue-600" />
@@ -273,7 +269,7 @@ export default async function TableauEtudiantPage() {
               </Link>
 
               <Link href="/app/paiements" className="group">
-                <div className="h-full p-6 rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white hover:border-green-400 hover:shadow-lg transition-all cursor-pointer">
+                <div className="h-full p-5 sm:p-6 rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white hover:border-green-400 hover:shadow-lg transition-all cursor-pointer">
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                       <CreditCard className="h-7 w-7 text-green-600" />
@@ -285,7 +281,7 @@ export default async function TableauEtudiantPage() {
               </Link>
 
               <Link href="/app/messages" className="group">
-                <div className="h-full p-6 rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer">
+                <div className="h-full p-5 sm:p-6 rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-white hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer">
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                       <MessageSquare className="h-7 w-7 text-purple-600" />
@@ -300,28 +296,28 @@ export default async function TableauEtudiantPage() {
         </Card>
 
         {/* Prochaines étapes */}
-        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg mb-12">
+        <Card className="overflow-visible md:overflow-hidden border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg mb-10 sm:mb-12">
           <CardHeader className="border-b-2 border-blue-200">
             <CardTitle className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <Target className="h-6 w-6 text-blue-600" />
               </div>
-              <span className="text-2xl">Prochaines étapes</span>
+              <span className="text-xl sm:text-2xl">Prochaines étapes</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {payment_status === 'none' && (
-              <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-xl">1</span>
+              <div className="flex items-start gap-4 p-5 sm:p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-lg sm:text-xl">1</span>
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-lg text-gray-900 mb-2">Activer l'accompagnement</p>
-                  <p className="text-gray-700 mb-4">
+                  <p className="text-[15px] sm:text-base text-gray-700 mb-4">
                     Effectuez le paiement (ou le 1er versement) pour débloquer toutes les fonctionnalités.
                   </p>
-                  <Link href="/app/paiements">
-                    <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl font-bold shadow-md">
+                  <Link href="/app/paiements" className="w-full sm:w-auto inline-block">
+                    <Button className="w-full sm:w-auto min-h-[44px] text-[16px] bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl font-bold shadow-md">
                       Payer maintenant
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -332,20 +328,20 @@ export default async function TableauEtudiantPage() {
 
             {payment_status === 'partial' && (
               <>
-                <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-xl">2</span>
+                <div className="flex items-start gap-4 p-5 sm:p-6 bg-white rounded-2xl border-2 border-slate-200 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-lg sm:text-xl">2</span>
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-lg text-gray-900 mb-2">Compléter votre dossier</p>
-                    <p className="text-gray-700 mb-2">
+                    <p className="text-[15px] sm:text-base text-gray-700 mb-2">
                       Vous pouvez déjà déposer vos documents et préparer l'entretien.
                     </p>
-                    <p className="text-amber-700 font-semibold text-sm mb-4">
+                    <p className="text-amber-700 font-semibold text-xs sm:text-sm mb-4">
                       ⚠️ L'envoi à Campus France sera possible après paiement du solde.
                     </p>
-                    <Link href="/app/mon-dossier">
-                      <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-md">
+                    <Link href="/app/mon-dossier" className="w-full sm:w-auto inline-block">
+                      <Button className="w-full sm:w-auto min-h-[44px] text-[16px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-bold shadow-md">
                         Ouvrir mon dossier
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
@@ -353,17 +349,17 @@ export default async function TableauEtudiantPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-6 bg-white rounded-2xl border-2 border-amber-200 shadow-md hover:shadow-lg transition-shadow">
-                  <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-xl">3</span>
+                <div className="flex items-start gap-4 p-5 sm:p-6 bg-white rounded-2xl border-2 border-amber-200 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-600 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-lg sm:text-xl">3</span>
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-lg text-gray-900 mb-2">Régler le montant restant</p>
-                    <p className="text-gray-700 mb-4">
+                    <p className="text-[15px] sm:text-base text-gray-700 mb-4">
                       Payez le solde pour que nous envoyions votre dossier à Campus France et planifions le rendez-vous.
                     </p>
-                    <Link href="/app/paiements">
-                      <Button className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-md">
+                    <Link href="/app/paiements" className="w-full sm:w-auto inline-block">
+                      <Button className="w-full sm:w-auto min-h-[44px] text-[16px] bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-bold shadow-md">
                         Payer le solde
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
@@ -374,9 +370,9 @@ export default async function TableauEtudiantPage() {
             )}
 
             {payment_status === 'full' && (
-              <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-md">
-                <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0" />
-                <p className="font-bold text-lg text-green-900">
+              <div className="flex items-center gap-4 p-5 sm:p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 shadow-md">
+                <CheckCircle2 className="h-7 w-7 sm:h-8 sm:w-8 text-green-600 flex-shrink-0" />
+                <p className="font-bold text-[15px] sm:text-lg text-green-900">
                   Paiement terminé ✓ – Terminez la préparation et demandez l'envoi à Campus France.
                 </p>
               </div>
@@ -385,19 +381,21 @@ export default async function TableauEtudiantPage() {
         </Card>
 
         {/* Besoin d'aide */}
-        <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-lg">
-          <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 p-8">
+        <Card className="overflow-visible md:overflow-hidden border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 shadow-lg">
+          <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6 p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <div className="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <MessageSquare className="h-7 w-7 text-cyan-600" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-cyan-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="h-6 w-6 sm:h-7 sm:w-7 text-cyan-600" />
               </div>
               <div>
-                <p className="font-bold text-2xl text-gray-900 mb-2">Besoin de conseils personnalisés ?</p>
-                <p className="text-gray-700">Un expert vous répond selon votre dossier</p>
+                <p className="font-bold text-xl sm:text-2xl text-gray-900 mb-1 sm:mb-2">Besoin de conseils personnalisés ?</p>
+                <p className="text-[15px] sm:text-base text-gray-700">Un expert vous répond selon votre dossier</p>
               </div>
             </div>
-            <Link href="/app/messages">
-              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all font-bold text-lg flex items-center gap-2">
+            <Link href="/app/messages" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto min-h-[48px] text-[16px]
+                                 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700
+                                 text-white px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-lg hover:shadow-xl font-bold flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Contacter un expert
                 <ArrowRight className="h-5 w-5" />

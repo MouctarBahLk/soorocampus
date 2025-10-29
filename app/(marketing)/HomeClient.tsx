@@ -903,14 +903,16 @@ export default function HomeClient() {
             </div>
 
             {/* Plan Accompagnement */}
-            <div className="group rounded-3xl border-3 border-blue-600 p-8 bg-gradient-to-br from-blue-50 to-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 relative overflow-hidden">
+            <div className="group rounded-3xl border-3 border-blue-600 p-8 pt-12 bg-gradient-to-br from-blue-50 to-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 relative overflow-visible md:overflow-hidden">
+
               <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-3xl" />
 
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-full text-sm font-bold shadow-xl">
                   ⭐ Plus complet
                 </div>
               </div>
+
 
               <div className="relative mb-8 mt-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4">

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Mail, Calendar, FileText, Download, CheckCircle, XCircle, ArrowLeft } from "lucide-react"
+import { Mail, Calendar, FileText, Download, CheckCircle, XCircle, ArrowLeft, AlertCircle } from "lucide-react"
 
 async function getDossierDetails(id: string) {
   const sb = await supabaseServer()
@@ -31,16 +31,46 @@ async function getDossierDetails(id: string) {
       .eq("user_id", app.user_id)
       .order("created_at", { ascending: false })
 
+    const BUCKET = 'documents'
+    
     const documents = await Promise.all(
       (docs || []).map(async (d) => {
-        if (!d.url) return { ...d, link: null }
+        if (!d.url) {
+          return { ...d, link: null, error: 'Pas de fichier' }
+        }
+        
         try {
-          const { data } = await sb.storage
-            .from("documents")
-            .createSignedUrl(d.url, 3600)
-          return { ...d, link: data?.signedUrl || null }
-        } catch {
-          return { ...d, link: null }
+          const filePath = d.url.trim()
+          
+          console.log('📄 Génération URL pour admin:', filePath)
+          
+          // ✅ CORRECTION : Créer URL signée valide 24h
+          const { data: signedData, error: signError } = await sb.storage
+            .from(BUCKET)
+            .createSignedUrl(filePath, 86400, {
+              download: false
+            })
+          
+          if (signError) {
+            console.error('❌ Erreur création URL signée:', signError)
+            return { ...d, link: null, error: signError.message }
+          }
+          
+          if (!signedData?.signedUrl) {
+            console.error('❌ URL signée vide pour:', filePath)
+            return { ...d, link: null, error: 'URL non générée' }
+          }
+          
+          console.log('✅ URL générée avec succès pour admin:', d.nom)
+          
+          return { 
+            ...d, 
+            link: signedData.signedUrl,
+            error: null
+          }
+        } catch (err) {
+          console.error('❌ Erreur traitement doc admin:', err)
+          return { ...d, link: null, error: 'Erreur technique' }
         }
       })
     )
@@ -53,7 +83,7 @@ async function getDossierDetails(id: string) {
 
     return { app, profile, documents, payments: payments || [] }
   } catch (error) {
-    console.error('Error:', error)
+    console.error('❌ Error getDossierDetails:', error)
     return { app: null, profile: null, documents: [], payments: [] }
   }
 }
@@ -64,25 +94,26 @@ export default async function DossierDetailPage({ params }: any) {
 
   if (!app) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900">Dossier introuvable</h2>
-          <Link href="/app/admin/dossiers" className="text-blue-600 hover:underline mt-4 inline-block">
-            <ArrowLeft className="h-4 w-4 inline mr-2" />
-            Retour
-          </Link>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Dossier introuvable</h2>
+              <Link href="/app/admin/dossiers" className="text-blue-600 hover:underline inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Retour aux dossiers
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  const fullName = profile 
-    ? `${profile.prenom || ""} ${profile.nom || ""}`.trim() || profile.email
-    : "Utilisateur"
-  
+  const fullName = profile?.full_name || profile?.email?.split('@')[0] || "Utilisateur"
   const paid = payments?.some((p: any) => p.status === "succeeded")
-  const paidAmount = ((payments?.find((p: any) => p.status === "succeeded")?.amount || 0) / 100).toFixed(2)
+  const paymentStatus = profile?.payment_status || 'none'
 
   async function updateStatus(formData: FormData) {
     "use server"
@@ -93,197 +124,229 @@ export default async function DossierDetailPage({ params }: any) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link href="/app/admin/dossiers" className="text-sm text-blue-600 hover:underline mb-2 inline-flex items-center gap-2">
-          <ArrowLeft className="h-4 w-4" /> Retour
-        </Link>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2 break-words">
-          Dossier de {fullName}
-        </h1>
-      </div>
-
-      {/* Grid responsive: 1 colonne mobile, 3 colonnes desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Colonne gauche: Info étudiant + paiement */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Info étudiant */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informations étudiant</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-lg md:text-2xl font-bold">
-                    {fullName[0]?.toUpperCase() || "?"}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-base md:text-lg truncate">{fullName}</p>
-                  <p className="text-xs md:text-sm text-gray-500 truncate">{profile?.email}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="text-sm font-medium truncate">{profile?.email || "Non renseigné"}</p>
-                  </div>
-                </div>
-
-                {profile?.telephone && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-400 flex-shrink-0">📞</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Téléphone</p>
-                      <p className="text-sm font-medium">{profile.telephone}</p>
-                    </div>
-                  </div>
-                )}
-
-                {profile?.pays && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-gray-400 flex-shrink-0">🌍</span>
-                    <div>
-                      <p className="text-xs text-gray-500">Pays</p>
-                      <p className="text-sm font-medium">{profile.pays}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-gray-500">Inscrit le</p>
-                    <p className="text-sm font-medium">
-                      {new Date(app.created_at).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <Link href={`/app/admin/messages?user=${app.user_id}`}>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-sm md:text-base">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Envoyer un message
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Statut paiement */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base md:text-lg">Statut du paiement</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {paid ? (
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-green-900 text-sm md:text-base">Payé</p>
-                    <p className="text-xs text-green-700">{paidAmount} €</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-200">
-                  <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-red-900 text-sm md:text-base">Non payé</p>
-                    <p className="text-xs text-red-700">En attente</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-12">
+          <Link 
+            href="/app/admin/dossiers" 
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold mb-4 transition"
+          >
+            <ArrowLeft className="h-4 w-4" /> 
+            Retour aux dossiers
+          </Link>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+            Dossier de {fullName}
+          </h1>
+          <p className="text-xl text-gray-600">{profile?.email}</p>
         </div>
 
-        {/* Colonne droite: Statut + Documents */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Statut du dossier */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Statut du dossier</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form action={updateStatus} className="space-y-4">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                  <select
-                    name="statut"
-                    defaultValue={app.statut || "en cours"}
-                    className="flex-1 border rounded-xl px-4 py-3 text-sm md:text-base"
-                  >
-                    <option value="non_cree">Non créé</option>
-                    <option value="en cours">En cours</option>
-                    <option value="en attente">En attente</option>
-                    <option value="validé">✅ Validé</option>
-                    <option value="refusé">❌ Refusé</option>
-                  </select>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 sm:w-auto">
-                    Enregistrer
-                  </Button>
+        {/* Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Colonne gauche */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Info étudiant */}
+            <Card className="border-2 border-blue-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-white border-b-2 border-blue-200">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="text-xl">Informations</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <span className="text-white text-2xl font-bold">
+                      {fullName[0]?.toUpperCase() || "?"}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-lg truncate">{fullName}</p>
+                    <p className="text-sm text-gray-500 truncate">{profile?.email}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs md:text-sm">
-                  <span className="text-gray-600">Statut actuel :</span>
-                  <Badge className={
-                    app.statut === "validé" ? "bg-green-600" :
-                    app.statut === "refusé" ? "bg-red-600" :
-                    app.statut === "en attente" ? "bg-amber-500" :
-                    "bg-gray-500"
-                  }>
-                    {app.statut || "En cours"}
-                  </Badge>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
 
-          {/* Documents */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Documents déposés ({documents.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {documents.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">Aucun document</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {documents.map((doc: any) => (
-                    <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-xl border">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm md:text-base truncate">{doc.nom || "Document"}</p>
-                          <p className="text-xs text-gray-500">
-                            {doc.type_doc} • {new Date(doc.created_at).toLocaleDateString("fr-FR")}
-                          </p>
-                        </div>
-                      </div>
-                      {doc.link && (
-                        <a 
-                          href={doc.link} 
-                          target="_blank" 
-                          className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs md:text-sm flex items-center justify-center gap-2 sm:w-auto"
-                        >
-                          <Download className="h-4 w-4" />
-                          <span>Télécharger</span>
-                        </a>
-                      )}
+                <div className="space-y-3 pt-4 border-t-2 border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-slate-600" />
                     </div>
-                  ))}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-500">Email</p>
+                      <p className="text-sm font-medium truncate">{profile?.email || "Non renseigné"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="h-4 w-4 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Inscrit le</p>
+                      <p className="text-sm font-medium">
+                        {new Date(app.created_at).toLocaleDateString("fr-FR", {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                <div className="pt-4 border-t-2 border-slate-200">
+                  <Link href={`/app/admin/messages?user=${app.user_id}`}>
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl shadow-lg font-bold">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Envoyer un message
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Statut paiement */}
+            <Card className={`border-2 shadow-lg ${
+              paymentStatus === 'full' ? 'border-green-200 bg-gradient-to-br from-green-50 to-white' :
+              paymentStatus === 'partial' ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white' :
+              'border-red-200 bg-gradient-to-br from-red-50 to-white'
+            }`}>
+              <CardHeader>
+                <CardTitle className="text-xl">Statut du paiement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {paymentStatus === 'full' ? (
+                  <div className="flex items-center gap-3 p-4 bg-green-100 rounded-xl border-2 border-green-200">
+                    <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-green-900">Payé complet (100%)</p>
+                      <p className="text-sm text-green-700">Peut envoyer son dossier</p>
+                    </div>
+                  </div>
+                ) : paymentStatus === 'partial' ? (
+                  <div className="flex items-center gap-3 p-4 bg-amber-100 rounded-xl border-2 border-amber-200">
+                    <AlertCircle className="h-6 w-6 text-amber-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-amber-900">Payé partiel (50%)</p>
+                      <p className="text-sm text-amber-700">Envoi bloqué jusqu'au solde</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-4 bg-red-100 rounded-xl border-2 border-red-200">
+                    <XCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-red-900">Non payé</p>
+                      <p className="text-sm text-red-700">En attente de paiement</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Colonne droite */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Statut du dossier */}
+            <Card className="border-2 border-purple-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-white border-b-2 border-purple-200">
+                <CardTitle className="text-xl">Statut du dossier</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <form action={updateStatus} className="space-y-4">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <select
+                      name="statut"
+                      defaultValue={app.statut || "en cours"}
+                      className="flex-1 border-2 border-slate-200 rounded-xl px-4 py-3 font-medium focus:border-purple-500 focus:outline-none"
+                    >
+                      <option value="non_cree">Non créé</option>
+                      <option value="en cours">En cours</option>
+                      <option value="en attente">En attente</option>
+                      <option value="validé">✅ Validé</option>
+                      <option value="refusé">❌ Refusé</option>
+                    </select>
+                    <Button 
+                      type="submit" 
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-bold shadow-lg"
+                    >
+                      Enregistrer
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Statut actuel :</span>
+                    <Badge className={`text-sm font-bold ${
+                      app.statut === "validé" ? "bg-green-600" :
+                      app.statut === "refusé" ? "bg-red-600" :
+                      app.statut === "en attente" ? "bg-amber-500" :
+                      "bg-gray-500"
+                    }`}>
+                      {app.statut || "En cours"}
+                    </Badge>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Documents */}
+            <Card className="border-2 border-slate-200 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b-2 border-slate-200">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-slate-600" />
+                    </div>
+                    <span className="text-xl">Documents déposés ({documents.length})</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {documents.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-600 font-medium">Aucun document déposé</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {documents.map((doc: any) => (
+                      <div key={doc.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-gray-900 truncate">{doc.nom || "Document"}</p>
+                            <p className="text-xs text-gray-500">
+                              {doc.type_doc || 'Document'} • {new Date(doc.created_at).toLocaleDateString("fr-FR")}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {doc.link ? (
+                          <a 
+                            href={doc.link} 
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
+                          >
+                            <Download className="h-4 w-4" />
+                            <span>Télécharger</span>
+                          </a>
+                        ) : (
+                          <div className="px-6 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-semibold">
+                            ❌ {doc.error || 'Non disponible'}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

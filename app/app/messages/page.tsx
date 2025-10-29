@@ -2,10 +2,10 @@
 'use client'
 
 import { useEffect, useState, FormEvent, useRef } from 'react'
-import { Send, MessageSquare, User, Clock, Sparkles, Image as ImageIcon, Smile, X } from 'lucide-react'
+import { Send, MessageSquare, Clock, Image as ImageIcon, Smile, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type Msg = { 
+type Msg = {
   id: string
   body: string
   created_at: string
@@ -37,7 +37,7 @@ export default function MessagesPage() {
     }
   }
 
-  useEffect(() => { 
+  useEffect(() => {
     load()
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }, [])
@@ -81,10 +81,10 @@ export default function MessagesPage() {
         imagePath = uploadData.path
       }
 
-      const res = await fetch('/api/messages', { 
+      const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: text.trim() || '📎 Image', image_path: imagePath }) 
+        body: JSON.stringify({ body: text.trim() || '📎 Image', image_path: imagePath })
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
@@ -104,17 +104,16 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-white">
+    <div className="min-h-[100dvh] flex flex-col bg-white">
       {/* Header léger */}
       <div className="px-4 pt-6 pb-3 sm:px-6">
-        <h1 className="text-3xl font-bold text-gray-900">Messagerie <span className="align-middle">💬</span></h1>
+        <h1 className="text-[28px] leading-tight sm:text-3xl font-bold text-gray-900">Messagerie <span className="align-middle">💬</span></h1>
         <p className="text-sm text-gray-500 mt-1">Communiquez avec l'équipe Sooro Campus</p>
       </div>
 
-      {/* Zone conversation : carte minimaliste */}
-      <div className="px-3 sm:px-6">
-        <div className="relative mx-auto max-w-3xl rounded-2xl ring-1 ring-slate-200 bg-gradient-to-b from-slate-50 to-white"
-             style={{ height: 'calc(100dvh - 220px)' }}>
+      {/* Conversation */}
+      <div className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-6 pb-2 sm:pb-4">
+        <div className="flex h-full flex-col rounded-2xl ring-1 ring-slate-200 bg-gradient-to-b from-slate-50 to-white overflow-hidden">
           {/* Titre fin */}
           <div className="sticky top-0 z-10 px-4 py-3 border-b border-slate-200/70 bg-white/70 backdrop-blur">
             <div className="flex items-center gap-2">
@@ -126,7 +125,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Messages */}
-          <div className="h-[calc(100%-56px)] overflow-y-auto p-3 sm:p-5 space-y-3 scroll-smooth">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 scroll-smooth">
             {!messages.length ? (
               <div className="h-full grid place-items-center text-center text-gray-500">
                 <div>
@@ -143,13 +142,9 @@ export default function MessagesPage() {
                   const mine = !m.is_from_admin
                   return (
                     <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[82%] sm:max-w-[70%]`}>
-                        {/* bulle */}
+                      <div className="max-w-[82%] sm:max-w-[70%]">
                         <div className={`rounded-2xl px-3.5 py-2.5 shadow-sm break-words
-                          ${mine
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-white text-gray-900 ring-1 ring-slate-200'}
-                        `}>
+                          ${mine ? 'bg-blue-600 text-white' : 'bg-white text-gray-900 ring-1 ring-slate-200'}`}>
                           {m.image_url && (
                             <img
                               src={m.image_url}
@@ -162,7 +157,6 @@ export default function MessagesPage() {
                             <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{m.body}</p>
                           )}
                         </div>
-                        {/* timestamp */}
                         <div className={`mt-1 flex items-center gap-1 ${mine ? 'justify-end pr-1' : 'justify-start pl-1'}`}>
                           <Clock className="h-3.5 w-3.5 text-gray-400" />
                           <span className="text-[11px] text-gray-500">
@@ -178,11 +172,10 @@ export default function MessagesPage() {
             )}
           </div>
 
-          {/* Composer flottant */}
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 sm:inset-x-4 sm:bottom-4">
-            {/* preview */}
-            {imagePreview && (
-              <div className="pointer-events-auto mb-2 inline-block relative">
+          {/* Composer sticky */}
+          {imagePreview && (
+            <div className="px-3 sm:px-5 pb-1">
+              <div className="mb-2 inline-block relative">
                 <img src={imagePreview} alt="Aperçu" className="max-h-28 rounded-xl ring-1 ring-blue-200" />
                 <button
                   onClick={removeImage}
@@ -192,12 +185,15 @@ export default function MessagesPage() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-            )}
+            </div>
+          )}
 
-            <form
-              onSubmit={onSubmit}
-              className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 backdrop-blur px-2.5 py-2 shadow-md"
-            >
+          <form
+            onSubmit={onSubmit}
+            className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur px-2.5 sm:px-4 py-2
+                       pb-[max(env(safe-area-inset-bottom),0.5rem)]"
+          >
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2.5 py-2 shadow-md">
               {/* image */}
               <div className="relative shrink-0">
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageSelect} className="hidden" id="image-upload" />
@@ -243,30 +239,31 @@ export default function MessagesPage() {
 
               {/* input */}
               <input
-                className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-[15px] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2
+                           text-[16px] leading-6 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 value={text}
                 onChange={e => setText(e.target.value)}
                 placeholder="Écrivez votre message…"
                 disabled={loading}
               />
 
-              {/* envoyer icône */}
+              {/* envoyer */}
               <Button
                 type="submit"
                 disabled={(!text.trim() && !selectedImage) || loading}
-                className="shrink-0 grid place-items-center rounded-xl w-11 h-11 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                className="shrink-0 grid place-items-center rounded-xl w-11 h-11
+                           bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
               >
                 <Send className="h-5 w-5" />
               </Button>
-            </form>
+            </div>
 
             <p className="mt-2 text-[11px] text-center text-gray-500">
               JPG, PNG, GIF, WEBP (max 5MB) • Emojis par catégories
             </p>
-          </div>
+          </form>
         </div>
-
-        {/* Encadré conseil (compact) */}
+        {/* Encadré conseil */}
         <div className="mx-auto max-w-3xl mt-6 rounded-2xl ring-1 ring-slate-200 bg-slate-50 p-4">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-100 grid place-items-center">

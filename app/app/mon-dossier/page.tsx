@@ -42,7 +42,6 @@ async function getData() {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return { user: null } as const
 
-  // 👉 On lit aussi payment_status ici
   const { data: profile } = await sb
     .from('profiles')
     .select('full_name, payment_status')
@@ -108,10 +107,10 @@ export default async function MonDossier() {
 
   const displayName = getDisplayName(user, profile)
 
-  // ✅ Upload autorisé SI paiement au moins partiel (validé manuellement par admin)
   const canUpload = (paymentStatus !== 'none') && (dossierStatut === 'non_cree' || dossierStatut === 'en cours')
 
-  async function setEnCours() {
+  // ✅ CORRECTION : Ajouter formData en paramètre
+  async function setEnCours(formData: FormData) {
     'use server'
     const sb = await supabaseServer()
     const { data: { user } } = await sb.auth.getUser()
@@ -120,13 +119,13 @@ export default async function MonDossier() {
     revalidatePath('/app/mon-dossier')
   }
 
-  async function deposer() {
+  // ✅ CORRECTION : Ajouter formData et retourner void
+  async function deposer(formData: FormData) {
     'use server'
     const sb = await supabaseServer()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return
 
-    // ❗ Sécurité côté serveur : blocage si paiement pas complet
     const { data: prof } = await sb
       .from('profiles')
       .select('payment_status')
@@ -134,13 +133,15 @@ export default async function MonDossier() {
       .single()
 
     if (prof?.payment_status !== 'full') {
-      return { error: 'Paiement complet requis pour envoyer le dossier' }
+      console.error('❌ Paiement non complet, dépôt bloqué')
+      return
     }
 
     await sb.from('applications').update({ statut: 'en attente' }).eq('user_id', user.id)
     revalidatePath('/app/mon-dossier')
   }
 
+  // ✅ CORRECTION : Suppression complète storage + BD
   async function deleteDoc(formData: FormData) {
     'use server'
     const id = String(formData.get('id') ?? '')
@@ -150,14 +151,40 @@ export default async function MonDossier() {
 
     const { data: doc } = await sb
       .from('documents')
-      .select('id,user_id,url')
+      .select('id, user_id, url')
       .eq('id', id)
       .single()
+    
     if (!doc || doc.user_id !== user.id) return
 
     const BUCKET = process.env.NEXT_PUBLIC_DOCS_BUCKET ?? 'documents'
-    if (doc.url) await sb.storage.from(BUCKET).remove([doc.url])
-    await sb.from('documents').delete().eq('id', id)
+    
+    // ✅ Supprimer d'abord du storage
+    if (doc.url) {
+      console.log('🗑️ Suppression fichier storage:', doc.url)
+      const { error: storageError } = await sb.storage
+        .from(BUCKET)
+        .remove([doc.url])
+      
+      if (storageError) {
+        console.error('❌ Erreur suppression storage:', storageError)
+      } else {
+        console.log('✅ Fichier supprimé du storage')
+      }
+    }
+
+    // ✅ Puis supprimer de la base de données
+    const { error: dbError } = await sb
+      .from('documents')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+    
+    if (dbError) {
+      console.error('❌ Erreur suppression BD:', dbError)
+    } else {
+      console.log('✅ Document supprimé de la BD')
+    }
 
     revalidatePath('/app/mon-dossier')
   }
